@@ -16,13 +16,12 @@ impl Context {
     }
 
     fn collect() -> anyhow::Result<Self> {
-        let files = staged_files_or_stage_all()?;
         let diff = git::staged_diff()?;
         let (diff, diff_truncated) = truncate(diff, MAX_DIFF_CHARS);
 
         Ok(Self {
             branch: git::current_branch()?,
-            files,
+            files: git::staged_files()?,
             stat: git::staged_diff_stat()?,
             diff,
             diff_truncated,
@@ -67,18 +66,6 @@ No explanation.
             self.branch, self.files, self.stat, self.diff, truncation_note
         )
     }
-}
-
-fn staged_files_or_stage_all() -> anyhow::Result<String> {
-    let files = git::staged_files()?;
-
-    if !files.is_empty() {
-        return Ok(files);
-    }
-
-    git::stage_all()?;
-
-    git::staged_files()
 }
 
 fn truncate(value: String, max_chars: usize) -> (String, bool) {
