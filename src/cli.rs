@@ -1,5 +1,3 @@
-use crate::commands;
-
 #[derive(clap::Parser)]
 pub struct Cli {
     #[command(subcommand)]
@@ -8,5 +6,5 @@ pub struct Cli {
 
 #[derive(clap::Subcommand)]
 pub enum Command {
-    Commit(commands::commit::Args),
+    Commit,
 }

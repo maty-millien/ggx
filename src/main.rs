@@ -9,11 +9,8 @@ fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Command::Commit(args) => commands::commit::run(args),
+        Command::Commit => commands::commit::run()?,
     }
-
-    let output: git::Output = git::run(&["status", "--short"])?;
-    println!("{}\n{}", output.stdout, output.stderr);
 
     Ok(())
 }

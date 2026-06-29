@@ -2,7 +2,6 @@ use std::process::Command;
 
 pub struct Output {
     pub stdout: String,
-    pub stderr: String,
 }
 
 pub fn run(args: &[&str]) -> anyhow::Result<Output> {
@@ -12,7 +11,7 @@ pub fn run(args: &[&str]) -> anyhow::Result<Output> {
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
 
     if output.status.success() {
-        Ok(Output { stdout, stderr })
+        Ok(Output { stdout })
     } else {
         anyhow::bail!("git {} failed: {}", args.join(" "), stderr.trim());
     }
