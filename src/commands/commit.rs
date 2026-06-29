@@ -1,6 +1,6 @@
 #[derive(clap::Args)]
 pub struct Args {
-  pub msg: String,
+    pub msg: String,
 }
 
 pub fn run(args: Args) {
