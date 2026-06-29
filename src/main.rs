@@ -10,8 +10,6 @@ fn main() {
     let cli = Cli::parse();
 
     match cli.command {
-        Command::Commit => commands::commit::run(),
+        Command::Commit(args) => commands::commit::run(args),
     }
-
-    println!("End");
 }
