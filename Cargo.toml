@@ -6,3 +6,4 @@ description = "A CLI written in Rust"
 
 [dependencies]
 clap = { version = "4.6.1", features = ["derive"] }
+anyhow = "1"

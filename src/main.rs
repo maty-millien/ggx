@@ -1,15 +1,19 @@
 mod cli;
-mod commands {
-    pub mod commit;
-}
+mod commands;
+mod git;
 
 use crate::cli::{Cli, Command};
 use clap::Parser;
 
-fn main() {
+fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
         Command::Commit(args) => commands::commit::run(args),
     }
+
+    let output: git::Output = git::run(&["status", "--short"])?;
+    println!("{}\n{}", output.stdout, output.stderr);
+
+    Ok(())
 }
