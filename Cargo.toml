@@ -2,5 +2,7 @@
 name = "ggx"
 version = "0.1.0"
 edition = "2024"
+description = "A small Git style CLI written in Rust"
 
 [dependencies]
+clap = { version = "4.6.1", features = ["derive"] }
