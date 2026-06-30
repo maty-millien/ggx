@@ -1,3 +1,4 @@
+use crate::ai;
 use crate::commands::commit::context::Context;
 use crate::git;
 
@@ -6,7 +7,7 @@ pub fn run() -> anyhow::Result<()> {
         git::stage_all()?;
     }
 
-    println!("{}", Context::prompt()?);
+    println!("{}", ai::generate(&Context::prompt()?)?);
 
     Ok(())
 }
