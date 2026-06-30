@@ -49,9 +49,11 @@ impl Context {
         let readme = self.readme.as_ref().map_or(String::new(), |readme| {
             format!(
                 r#"
-<Readme>
+## README
+
+````markdown
 {}
-</Readme>
+````
 "#,
                 readme
             )
@@ -67,34 +69,42 @@ impl Context {
         let notes = if notes.is_empty() {
             String::new()
         } else {
-            format!("\n\n<Note>\n{}\n</Note>", notes.join("\n"))
+            format!("\n\n## Notes\n\n{}", notes.join("\n"))
         };
 
         format!(
-            r#"<Instructions>
+            r#"## Instructions
+
 Generate a concise git commit message for the staged changes.
 Use Conventional Commits when appropriate: feat, fix, refactor, docs, test, chore, build, ci.
 Return only the commit message.
 No markdown.
 No explanation.
-</Instructions>
 
-<Branch>
-{}
-</Branch>
+## Branch
 
-<ChangedFiles>
+````
 {}
-</ChangedFiles>
+````
 
-<DiffStat>
+## Changed Files
+
+````
 {}
-</DiffStat>
+````
+
+## Diff Stat
+
+````
+{}
+````
 {}
 
-<StagedDiff>
+## Staged Diff
+
+````diff
 {}
-</StagedDiff>{}"#,
+````{}"#,
             self.branch, self.files, self.stat, readme, self.diff, notes
         )
     }
