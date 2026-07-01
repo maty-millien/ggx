@@ -36,11 +36,24 @@ pub fn pull_request(target: Option<&str>) -> anyhow::Result<PullRequest> {
 }
 
 pub fn merge(target: Option<&str>, keep_branch: bool, admin: bool) -> anyhow::Result<String> {
+    merge_with_strategy(target, "--merge", keep_branch, admin)
+}
+
+pub fn squash(target: Option<&str>, keep_branch: bool, admin: bool) -> anyhow::Result<String> {
+    merge_with_strategy(target, "--squash", keep_branch, admin)
+}
+
+fn merge_with_strategy(
+    target: Option<&str>,
+    strategy: &str,
+    keep_branch: bool,
+    admin: bool,
+) -> anyhow::Result<String> {
     let mut args = vec!["pr", "merge"];
     if let Some(target) = target {
         args.push(target);
     }
-    args.push("--merge");
+    args.push(strategy);
     if !keep_branch {
         args.push("--delete-branch");
     }

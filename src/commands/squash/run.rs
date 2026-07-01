@@ -1,66 +1,54 @@
-use crate::commands::{merge_common as git, squash::prompt};
-use crate::{ai, tui};
+use crate::commands::{merge::github, merge_common as git};
+use crate::tui;
 use std::time::Instant;
-
-const MAX_DIFF_CHARS: usize = 16_000;
 
 pub fn run(keep_branch: bool, admin: bool) -> anyhow::Result<()> {
     let started = Instant::now();
-    let branch = git::current_branch()?;
-    let base = git::default_base()?;
-    git::ensure_rewrite_allowed(&branch, &base, admin)?;
-    git::fetch()?;
-    let base_ref = git::branch_ref(&base)?;
+    let pull_request = github::pull_request(None)?;
 
-    if branch == base {
-        anyhow::bail!("Cannot squash the base branch '{}'.", base);
-    }
+    tui::step("Pull request found", started.elapsed());
+    tui::section("Pull Request");
+    tui::block(&format!(
+        "#{} {}\n{}\n{} -> {}\nMerge state: {}\nReview: {}",
+        pull_request.number,
+        pull_request.title,
+        pull_request.url,
+        pull_request.head,
+        pull_request.base,
+        value_or_unknown(&pull_request.merge_state),
+        value_or_unknown(&pull_request.review_decision)
+    ));
 
-    let commits = crate::git::run(&["log", "--oneline", &format!("{}..HEAD", base_ref)])?
-        .trim()
-        .to_string();
-    if commits.is_empty() {
-        anyhow::bail!("No commits found between {} and {}.", base, branch);
-    }
-
-    let diff = crate::git::run(&["diff", "--unified=3", &format!("{}...HEAD", base_ref)])?
-        .trim()
-        .chars()
-        .take(MAX_DIFF_CHARS)
-        .collect::<String>();
-
-    tui::step("Analysis complete", started.elapsed());
-    tui::section("Commits");
-    tui::block(&commits);
-
-    let (message, elapsed) = tui::timed_spinner("Generating squash commit", || {
-        ai::generate(&prompt::render(&branch, &base, &commits, &diff))
-    })?;
-
-    tui::step("Message generated", elapsed);
-    tui::message(&message);
-
-    if !tui::confirm(&format!("Squash {} onto {}?", branch, base))? {
+    let cleanup = if keep_branch {
+        "keep branch"
+    } else {
+        "delete branch"
+    };
+    let admin_label = if admin { " with admin" } else { "" };
+    if !tui::confirm(&format!(
+        "Squash merge PR #{} into {} and {}{}?",
+        pull_request.number, pull_request.base, cleanup, admin_label
+    ))? {
         tui::warning("Aborted");
         return Ok(());
     }
 
-    tui::spinner("Squashing commits", || {
-        crate::git::run(&["reset", "--soft", &base_ref])?;
-        crate::git::run(&["commit", "-m", &message])
+    tui::spinner("Squash merging pull request", || {
+        github::squash(None, keep_branch, admin)
     })?;
-    tui::success("Squashed", &branch);
+    tui::success("Squash merged PR", &format!("#{}", pull_request.number));
 
-    if let Some(upstream) = git::upstream()
-        && tui::confirm(&format!("Force push {} with lease?", upstream))?
-    {
-        tui::spinner("Force pushing", git::force_push_with_lease)?;
-        tui::success("Pushed to", &upstream);
-    }
-
-    if keep_branch {
-        tui::warning("Keeping branch");
-    }
+    tui::rail();
+    tui::spinner("Syncing base branch", || {
+        git::checkout(&pull_request.base)?;
+        git::pull()?;
+        git::fetch()
+    })?;
+    tui::success("Synced", &pull_request.base);
 
     Ok(())
+}
+
+fn value_or_unknown(value: &str) -> &str {
+    if value.is_empty() { "unknown" } else { value }
 }
