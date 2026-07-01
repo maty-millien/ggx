@@ -69,7 +69,7 @@ pub fn spinner<T>(
     let spinner = ProgressBar::new_spinner();
     spinner.set_style(
         ProgressStyle::with_template("{spinner:.cyan} {msg}")?
-            .tick_strings(&["⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷"]),
+            .tick_strings(&["◐", "◓", "◑", "◒"]),
     );
     spinner.set_message(message);
     spinner.enable_steady_tick(Duration::from_millis(80));
