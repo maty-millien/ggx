@@ -6,5 +6,6 @@ pub struct Cli {
 
 #[derive(clap::Subcommand)]
 pub enum Command {
+    Branch { prompt: Option<String> },
     Commit,
 }

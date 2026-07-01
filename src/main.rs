@@ -14,6 +14,7 @@ fn main() -> ExitCode {
     update::start_brew_update();
 
     let result = match cli.command {
+        Command::Branch { prompt } => commands::branch::run(prompt),
         Command::Commit => commands::commit::run(),
     };
 
