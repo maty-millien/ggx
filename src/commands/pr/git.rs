@@ -12,6 +12,15 @@ pub fn current_branch() -> anyhow::Result<String> {
     Ok(branch)
 }
 
+pub fn ensure_clean_worktree() -> anyhow::Result<()> {
+    let status = crate::git::run(&["status", "--porcelain"])?;
+    if !status.trim().is_empty() {
+        anyhow::bail!("Working tree is not clean. Commit or stash your changes first.");
+    }
+
+    Ok(())
+}
+
 pub fn default_base() -> anyhow::Result<String> {
     if let Ok(output) = crate::git::run(&["symbolic-ref", "refs/remotes/origin/HEAD"]) {
         let base = output
