@@ -27,11 +27,6 @@ fn main() -> ExitCode {
             admin,
         } => commands::merge::run(target, keep_branch, admin),
         Command::Squash { keep_branch, admin } => commands::squash::run(keep_branch, admin),
-        Command::Rebase {
-            target,
-            keep_branch,
-            admin,
-        } => commands::rebase::run(target, keep_branch, admin),
     };
 
     if let Err(error) = result {

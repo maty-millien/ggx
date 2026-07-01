@@ -1,6 +1,6 @@
 # ggx Project
 
-ggx is a fast Rust git workflow CLI with AI generated branches, commits, PRs, squash, rebase, merge cleanup, auto push, and an easy provider API for contributors.
+ggx is a fast Rust git workflow CLI with AI generated branches, commits, PRs, squash, merge cleanup, auto push, and an easy provider API for contributors.
 
 ## Commands
 
@@ -14,7 +14,6 @@ ggx is a fast Rust git workflow CLI with AI generated branches, commits, PRs, sq
 | `ggx clean`  | Delete merged and stale branches                                            |
 | `ggx merge`  | Merge branch or PR, delete branch by default, checkout default branch, sync |
 | `ggx squash` | Squash branch commits into one clean commit                                 |
-| `ggx rebase` | Rebase branch onto target branch                                            |
 
 ## Key Defaults
 
@@ -28,7 +27,6 @@ ggx is a fast Rust git workflow CLI with AI generated branches, commits, PRs, sq
 | Merge behavior                     | Full land flow                |
 | Merge strategy                     | Normal merge only             |
 | Squash flow                        | Separate `ggx squash` command |
-| Rebase flow                        | Separate `ggx rebase` command |
 | Destructive actions                | Confirm unless `--yes`        |
 | Protected branches                 | Never delete unless `--admin` |
 
@@ -54,7 +52,6 @@ ggx is a fast Rust git workflow CLI with AI generated branches, commits, PRs, sq
 | Create PR                           | `ggx pr`                                   |
 | Create draft PR                     | `ggx pr --draft`                           |
 | Branch, commit, push, PR            | `ggx ship`                                 |
-| Rebase branch before PR             | `ggx rebase main`                          |
 | Squash branch before PR             | `ggx squash`                               |
 | Merge PR and clean branch           | `ggx merge`                                |
 | Merge but keep branch               | `ggx merge --keep-branch`                  |
@@ -135,7 +132,7 @@ Example output: `feat/refresh-auth-session`
 8. Sync default branch.
 9. Use `--keep-branch` to preserve the branch.
 
-Important: `ggx merge` should not have `--squash` or `--rebase`. Squash and rebase are separate commands.
+Important: `ggx merge` should not have `--squash`. Squash is a separate command.
 
 ## Squash Behavior
 
@@ -145,14 +142,6 @@ Important: `ggx merge` should not have `--squash` or `--rebase`. Squash and reba
 4. Squash into one commit.
 5. Push with lease if branch has upstream and user confirms.
 6. Require `--admin` for protected or shared branch rewrites.
-
-## Rebase Behavior
-
-1. Fetch remote.
-2. Rebase current branch onto target branch.
-3. Explain conflicts if they happen.
-4. Support continue and abort flows.
-5. Push with lease after success if needed and confirmed.
 
 ## Admin Mode
 
@@ -215,4 +204,4 @@ Provider interface goals:
 
 ## One Line Pitch
 
-ggx is a fast AI powered git workflow CLI for branches, commits, PRs, squash, rebase, automatic pushing, clean merges, and local repos that stay synced with remote.
+ggx is a fast AI powered git workflow CLI for branches, commits, PRs, squash, automatic pushing, clean merges, and local repos that stay synced with remote.

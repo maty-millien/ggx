@@ -31,11 +31,4 @@ pub enum Command {
         #[arg(long)]
         admin: bool,
     },
-    Rebase {
-        target: Option<String>,
-        #[arg(long)]
-        keep_branch: bool,
-        #[arg(long)]
-        admin: bool,
-    },
 }

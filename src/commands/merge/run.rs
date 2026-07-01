@@ -1,10 +1,10 @@
-use crate::commands::{merge::github, merge_common as git};
+use crate::commands::merge::github;
 use crate::tui;
 use std::time::Instant;
 
 pub fn run(target: Option<String>, keep_branch: bool, admin: bool) -> anyhow::Result<()> {
     let started = Instant::now();
-    git::ensure_clean_worktree()?;
+    ensure_clean_worktree()?;
     let pull_request = github::pull_request(target.as_deref())?;
 
     tui::step("Pull request found", started.elapsed());
@@ -32,11 +32,38 @@ pub fn run(target: Option<String>, keep_branch: bool, admin: bool) -> anyhow::Re
 
     tui::rail();
     tui::spinner("Syncing base branch", || {
-        git::checkout(&pull_request.base)?;
-        git::pull()?;
-        git::fetch()
+        checkout(&pull_request.base)?;
+        pull()?;
+        fetch()
     })?;
     tui::success("Synced", &pull_request.base);
+
+    Ok(())
+}
+
+fn ensure_clean_worktree() -> anyhow::Result<()> {
+    let status = crate::git::run(&["status", "--porcelain"])?;
+    if !status.trim().is_empty() {
+        anyhow::bail!("Working tree is not clean. Commit or stash your changes first.");
+    }
+
+    Ok(())
+}
+
+fn fetch() -> anyhow::Result<()> {
+    crate::git::run(&["fetch", "--all", "--prune"])?;
+
+    Ok(())
+}
+
+fn pull() -> anyhow::Result<()> {
+    crate::git::run(&["pull", "--ff-only"])?;
+
+    Ok(())
+}
+
+fn checkout(branch: &str) -> anyhow::Result<()> {
+    crate::git::run(&["checkout", branch])?;
 
     Ok(())
 }
