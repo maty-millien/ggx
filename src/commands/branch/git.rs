@@ -18,6 +18,12 @@ pub fn create(name: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+pub fn push(name: &str) -> anyhow::Result<()> {
+    crate::git::run(&["push", "-u", "origin", name])?;
+
+    Ok(())
+}
+
 fn has_branch_output(output: &str) -> bool {
     !output.trim().is_empty()
 }

@@ -36,6 +36,23 @@ pub fn message(text: &str) {
     rail();
 }
 
+pub fn block(text: &str) {
+    let width = Term::stdout().size().1 as usize;
+    let width = width.saturating_sub(4).max(20);
+
+    for line in text.lines() {
+        if line.is_empty() {
+            rail();
+            continue;
+        }
+
+        for line in wrap_line(line, width) {
+            println!("{} {}", rail_text(), line);
+        }
+    }
+    rail();
+}
+
 pub fn confirm(prompt: &str) -> anyhow::Result<bool> {
     print!("{} {} [Y/n] ", style("+").green(), style(prompt).bold());
     io::stdout().flush()?;
@@ -166,6 +183,70 @@ fn commit_type(kind: &str) -> String {
     };
 
     format!("{}({}", style(name).green().bold(), style(scope).cyan())
+}
+
+fn wrap_line(line: &str, width: usize) -> Vec<String> {
+    let mut lines = Vec::new();
+    let mut current = String::new();
+    let indent = line
+        .chars()
+        .take_while(|character| character.is_whitespace())
+        .collect::<String>();
+    let width = width.saturating_sub(indent.chars().count()).max(1);
+
+    for word in line.split_whitespace() {
+        if word.chars().count() > width {
+            if !current.is_empty() {
+                lines.push(format!("{}{}", indent, current));
+                current = String::new();
+            }
+            lines.extend(
+                split_word(word, width)
+                    .into_iter()
+                    .map(|word| format!("{}{}", indent, word)),
+            );
+            continue;
+        }
+
+        let separator = if current.is_empty() { 0 } else { 1 };
+        if current.chars().count() + separator + word.chars().count() > width && !current.is_empty()
+        {
+            lines.push(format!("{}{}", indent, current));
+            current = String::new();
+        }
+
+        if !current.is_empty() {
+            current.push(' ');
+        }
+        current.push_str(word);
+    }
+
+    if current.is_empty() {
+        lines.push(line.to_string());
+    } else {
+        lines.push(format!("{}{}", indent, current));
+    }
+
+    lines
+}
+
+fn split_word(word: &str, width: usize) -> Vec<String> {
+    let mut parts = Vec::new();
+    let mut current = String::new();
+
+    for character in word.chars() {
+        if current.chars().count() >= width {
+            parts.push(current);
+            current = String::new();
+        }
+        current.push(character);
+    }
+
+    if !current.is_empty() {
+        parts.push(current);
+    }
+
+    parts
 }
 
 fn read_confirm_char() -> anyhow::Result<char> {

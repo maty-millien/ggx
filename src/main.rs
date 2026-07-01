@@ -16,6 +16,22 @@ fn main() -> ExitCode {
     let result = match cli.command {
         Command::Branch { prompt } => commands::branch::run(prompt),
         Command::Commit => commands::commit::run(),
+        Command::Pr {
+            draft,
+            base,
+            closes,
+        } => commands::pr::run(draft, base, closes),
+        Command::Merge {
+            target,
+            keep_branch,
+            admin,
+        } => commands::merge::run(target, keep_branch, admin),
+        Command::Squash { keep_branch, admin } => commands::squash::run(keep_branch, admin),
+        Command::Rebase {
+            target,
+            keep_branch,
+            admin,
+        } => commands::rebase::run(target, keep_branch, admin),
     };
 
     if let Err(error) = result {
