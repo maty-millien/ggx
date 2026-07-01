@@ -9,8 +9,11 @@ const README_NAMES: &[&str] = &["readme", "readme.md", "readme.markdown", "readm
 
 pub struct Context {
     pub branch: String,
+    pub change_source: &'static str,
+    pub stage_before_commit: bool,
     pub files: String,
     pub stat: String,
+    pub numstat: String,
     pub readme: Option<String>,
     pub diff: String,
     pub diff_truncated: bool,
@@ -18,12 +21,45 @@ pub struct Context {
 }
 
 impl Context {
-    pub fn prompt() -> anyhow::Result<String> {
-        Ok(Self::collect()?.render_prompt())
-    }
+    pub fn collect() -> anyhow::Result<Self> {
+        let staged_files = git::staged_files()?;
+        let stage_before_commit = staged_files.is_empty();
+        let change_source = if stage_before_commit {
+            "unstaged"
+        } else {
+            "staged"
+        };
 
-    fn collect() -> anyhow::Result<Self> {
-        let diff = git::staged_diff()?;
+        let (files, stat, numstat, diff) = if stage_before_commit {
+            (
+                git::working_tree_status()?,
+                git::unstaged_diff_stat()?,
+                git::unstaged_numstat()?,
+                git::unstaged_diff()?,
+            )
+        } else {
+            (
+                staged_files,
+                git::staged_diff_stat()?,
+                git::staged_numstat()?,
+                git::staged_diff()?,
+            )
+        };
+
+        let (stat, numstat, diff) = if stage_before_commit && diff.is_empty() {
+            (
+                String::from("Untracked-only changes; diff is empty until files are staged."),
+                String::new(),
+                String::new(),
+            )
+        } else {
+            (stat, numstat, diff)
+        };
+
+        if files.is_empty() {
+            anyhow::bail!("No staged or unstaged changes found.");
+        }
+
         let (diff, diff_truncated) = truncate(diff, MAX_DIFF_CHARS);
         let readme = read_readme(Path::new(&git::repo_root()?))?;
         let (readme, readme_truncated) = match readme {
@@ -36,8 +72,11 @@ impl Context {
 
         Ok(Self {
             branch: git::current_branch()?,
-            files: git::staged_files()?,
-            stat: git::staged_diff_stat()?,
+            change_source,
+            stage_before_commit,
+            files,
+            stat,
+            numstat,
             readme,
             diff,
             diff_truncated,
@@ -45,7 +84,7 @@ impl Context {
         })
     }
 
-    fn render_prompt(&self) -> String {
+    pub fn render_prompt(&self) -> String {
         let readme = self.readme.as_ref().map_or(String::new(), |readme| {
             format!(
                 r#"
@@ -61,7 +100,7 @@ impl Context {
 
         let mut notes = Vec::new();
         if self.diff_truncated {
-            notes.push("Staged diff was truncated.");
+            notes.push("Diff was truncated.");
         }
         if self.readme_truncated {
             notes.push("README was truncated.");
@@ -75,7 +114,7 @@ impl Context {
         format!(
             r#"## Instructions
 
-Generate a concise git commit message for the staged changes.
+Generate a concise git commit message for the {change_source} changes.
 Use Conventional Commits when appropriate: feat, fix, refactor, docs, test, chore, build, ci.
 Return only the commit message.
 No markdown.
@@ -100,12 +139,18 @@ No explanation.
 ````
 {}
 
-## Staged Diff
+## Diff
 
 ````diff
 {}
 ````{}"#,
-            self.branch, self.files, self.stat, readme, self.diff, notes
+            self.branch,
+            self.files,
+            self.stat,
+            readme,
+            self.diff,
+            notes,
+            change_source = self.change_source
         )
     }
 }

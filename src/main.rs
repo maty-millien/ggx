@@ -2,6 +2,7 @@ mod ai;
 mod cli;
 mod commands;
 mod git;
+mod ui;
 
 use crate::cli::{Cli, Command};
 use clap::Parser;

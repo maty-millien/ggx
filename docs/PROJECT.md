@@ -7,7 +7,7 @@ ggx is a fast Rust git workflow CLI with AI generated branches, commits, PRs, sq
 | Command      | Purpose                                                                     |
 | ------------ | --------------------------------------------------------------------------- |
 | `ggx branch` | Generate and create a branch from current changes                           |
-| `ggx commit` | Generate commit from staged changes, commit, auto push if upstream exists   |
+| `ggx commit` | Generate commit from staged or unstaged changes, commit, auto push if upstream exists |
 | `ggx pr`     | Push if needed, generate PR title and body, create PR                       |
 | `ggx ship`   | Smart flow: branch, commit, push, PR                                        |
 | `ggx sync`   | Fetch remotes, prune refs, sync default branch, clean stale local branches  |
@@ -22,7 +22,7 @@ ggx is a fast Rust git workflow CLI with AI generated branches, commits, PRs, sq
 | ---------------------------------- | ----------------------------- |
 | Commit input                       | Staged changes                |
 | Commit push                        | Auto push if upstream exists  |
-| Missing upstream                   | Ask to publish branch         |
+| Missing upstream                   | Skip push                     |
 | Branch deletion after merge        | Enabled                       |
 | Remote branch deletion after merge | Enabled                       |
 | Merge behavior                     | Full land flow                |
@@ -50,9 +50,7 @@ ggx is a fast Rust git workflow CLI with AI generated branches, commits, PRs, sq
 | ----------------------------------- | ------------------------------------------ |
 | Create branch from current changes  | `ggx branch`                               |
 | Create branch from prompt           | `ggx branch "add stripe webhook handling"` |
-| Commit staged changes and auto push | `ggx commit`                               |
-| Commit all tracked changes          | `ggx commit --all`                         |
-| Commit without pushing              | `ggx commit --no-push`                     |
+| Commit staged or unstaged changes and auto push | `ggx commit`                               |
 | Create PR                           | `ggx pr`                                   |
 | Create draft PR                     | `ggx pr --draft`                           |
 | Branch, commit, push, PR            | `ggx ship`                                 |
@@ -78,13 +76,13 @@ Example output: `feat/refresh-auth-session`
 ## Commit Behavior
 
 1. Use staged changes by default.
-2. Support `--all` to stage tracked changes first.
+2. If nothing is staged, use unstaged changes and stage all after confirmation.
 3. Generate commit message.
-4. Confirm unless `--yes`.
-5. Commit.
-6. Push automatically if upstream exists.
-7. Ask to publish if remote exists but upstream is missing.
-8. Respect `--no-push`.
+4. Show a styled changes summary and generated message.
+5. Let the user commit to the current branch or cancel.
+6. Commit.
+7. Push automatically if upstream exists.
+8. Skip push if upstream is missing.
 
 ## PR Behavior
 
