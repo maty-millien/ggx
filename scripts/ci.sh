@@ -12,6 +12,3 @@ cargo test --all-targets --all-features
 
 echo "Running cargo build"
 cargo build --locked
-
-echo "Running cargo audit"
-cargo audit

@@ -22,7 +22,9 @@ pub struct Context {
 
 impl Context {
     pub fn collect() -> anyhow::Result<Self> {
-        let staged_files = git::staged_files()?;
+        let staged_files = git::run(&["diff", "--staged", "--name-status"])?
+            .trim()
+            .to_string();
         let stage_before_commit = staged_files.is_empty();
         let change_source = if stage_before_commit {
             "unstaged"
@@ -32,17 +34,25 @@ impl Context {
 
         let (files, stat, numstat, diff) = if stage_before_commit {
             (
-                git::working_tree_status()?,
-                git::unstaged_diff_stat()?,
-                git::unstaged_numstat()?,
-                git::unstaged_diff()?,
+                git::run(&["status", "--short", "--untracked-files=all"])?
+                    .trim_end()
+                    .to_string(),
+                git::run(&["diff", "--stat"])?.trim().to_string(),
+                git::run(&["diff", "--numstat"])?.trim().to_string(),
+                git::run(&["diff", "--unified=3"])?.trim().to_string(),
             )
         } else {
             (
                 staged_files,
-                git::staged_diff_stat()?,
-                git::staged_numstat()?,
-                git::staged_diff()?,
+                git::run(&["diff", "--staged", "--stat"])?
+                    .trim()
+                    .to_string(),
+                git::run(&["diff", "--staged", "--numstat"])?
+                    .trim()
+                    .to_string(),
+                git::run(&["diff", "--staged", "--unified=3"])?
+                    .trim()
+                    .to_string(),
             )
         };
 
@@ -61,7 +71,10 @@ impl Context {
         }
 
         let (diff, diff_truncated) = truncate(diff, MAX_DIFF_CHARS);
-        let readme = read_readme(Path::new(&git::repo_root()?))?;
+        let repo_root = git::run(&["rev-parse", "--show-toplevel"])?
+            .trim()
+            .to_string();
+        let readme = read_readme(Path::new(&repo_root))?;
         let (readme, readme_truncated) = match readme {
             Some(readme) => {
                 let (readme, truncated) = truncate(readme, MAX_README_CHARS);
@@ -71,7 +84,9 @@ impl Context {
         };
 
         Ok(Self {
-            branch: git::current_branch()?,
+            branch: git::run(&["rev-parse", "--abbrev-ref", "HEAD"])?
+                .trim()
+                .to_string(),
             change_source,
             stage_before_commit,
             files,

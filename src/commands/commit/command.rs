@@ -7,7 +7,9 @@ use std::time::Instant;
 pub fn run() -> anyhow::Result<()> {
     let started = Instant::now();
     let context = Context::collect()?;
-    let upstream = git::upstream_branch()?;
+    let upstream = git::run(&["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"])
+        .ok()
+        .map(|output| output.trim().to_string());
 
     tui::step("Analysis complete", started.elapsed());
     tui::section("Changes");
@@ -35,15 +37,15 @@ pub fn run() -> anyhow::Result<()> {
 
 fn commit_and_push(context: &Context, message: &str, upstream: Option<&str>) -> anyhow::Result<()> {
     if context.stage_before_commit {
-        tui::spinner("Staging changes", git::stage_all)?;
+        tui::spinner("Staging changes", || git::run(&["add", "--all"]))?;
     }
 
-    tui::spinner("Creating commit", || git::commit(message))?;
+    tui::spinner("Creating commit", || git::run(&["commit", "-m", message]))?;
     tui::success("Committed to", &context.branch);
 
     if let Some(upstream) = upstream {
         tui::rail();
-        tui::spinner("Pushing commit", git::push)?;
+        tui::spinner("Pushing commit", || git::run(&["push"]))?;
         tui::success("Pushed to", upstream);
     }
 
