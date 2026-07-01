@@ -103,6 +103,10 @@ pub fn warning(text: &str) {
     println!("{} {}", style("+").green(), style(text).yellow().bold());
 }
 
+pub fn error(error: &anyhow::Error) {
+    eprintln!("{} {}", style("+").red(), style(error).red().bold());
+}
+
 fn rail() {
     println!("{}", rail_text());
 }
