@@ -19,7 +19,7 @@ pub fn run() -> anyhow::Result<()> {
 
     ui::step("Message generated", elapsed);
     ui::message(&message);
-    if confirm_commit(&context.branch)? {
+    if ui::confirm(&format!("Commit to {}?", context.branch))? {
         commit_and_push(&context, &message, upstream.as_deref())?;
     } else {
         ui::warning("Aborted");
@@ -42,10 +42,6 @@ fn commit_and_push(context: &Context, message: &str, upstream: Option<&str>) -> 
     }
 
     Ok(())
-}
-
-fn confirm_commit(branch: &str) -> anyhow::Result<bool> {
-    ui::confirm(&format!("Commit to {}?", branch))
 }
 
 struct ParsedChange {
