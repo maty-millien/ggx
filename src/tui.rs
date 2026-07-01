@@ -106,7 +106,7 @@ pub fn error(error: &anyhow::Error) {
     eprintln!("{} {}", style("+").red(), style(error).red().bold());
 }
 
-fn rail() {
+pub fn rail() {
     println!("{}", rail_text());
 }
 

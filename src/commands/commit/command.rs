@@ -42,6 +42,7 @@ fn commit_and_push(context: &Context, message: &str, upstream: Option<&str>) -> 
     tui::success("Committed to", &context.branch);
 
     if let Some(upstream) = upstream {
+        tui::rail();
         tui::spinner("Pushing commit", git::push)?;
         tui::success("Pushed to", upstream);
     }
