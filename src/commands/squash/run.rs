@@ -51,17 +51,11 @@ pub fn run(keep_branch: bool, admin: bool) -> anyhow::Result<()> {
     })?;
     tui::success("Squashed", &branch);
 
-    if let Some(upstream) = git::upstream() {
-        if !admin {
-            anyhow::bail!(
-                "Refusing to force-push {} without --admin. Re-run with --admin to unlock this.",
-                upstream
-            );
-        }
-        if tui::confirm(&format!("Force push {} with lease?", upstream))? {
-            tui::spinner("Force pushing", git::force_push_with_lease)?;
-            tui::success("Pushed to", &upstream);
-        }
+    if let Some(upstream) = git::upstream()
+        && tui::confirm(&format!("Force push {} with lease?", upstream))?
+    {
+        tui::spinner("Force pushing", git::force_push_with_lease)?;
+        tui::success("Pushed to", &upstream);
     }
 
     if keep_branch {
