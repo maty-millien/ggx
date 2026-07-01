@@ -97,12 +97,10 @@ pub fn success(label: &str, value: &str) {
         style(label).green().bold(),
         style(value).cyan()
     );
-    rail();
 }
 
 pub fn warning(text: &str) {
     println!("{} {}", style("+").green(), style(text).yellow().bold());
-    rail();
 }
 
 fn rail() {
