@@ -13,9 +13,11 @@ pub fn run(input_prompt: Option<String>) -> anyhow::Result<()> {
     tui::section("Branch");
     tui::message(&branch);
 
-    if tui::confirm(&format!("Create and checkout {}?", branch))? {
+    if tui::confirm(&format!("Create, checkout, and push {}?", branch))? {
         tui::spinner("Creating branch", || git::create(&branch))?;
         tui::success("Checked out", &branch);
+        tui::spinner("Pushing branch", || git::push(&branch))?;
+        tui::success("Pushed to", &format!("origin/{}", branch));
     } else {
         tui::warning("Aborted");
     }
