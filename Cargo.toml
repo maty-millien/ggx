@@ -6,7 +6,7 @@ description = "A fast AI-powered git workflow CLI"
 repository = "https://github.com/maty-millien/ggx"
 homepage = "https://github.com/maty-millien/ggx"
 license = "MIT"
-readme = "README.md"
+readme = "docs/README.md"
 
 [dependencies]
 clap = { version = "4.6.1", features = ["derive"] }
