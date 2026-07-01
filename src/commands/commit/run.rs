@@ -1,8 +1,5 @@
 use crate::ai;
-use crate::commands::commit::changes;
-use crate::commands::commit::context::Context;
-use crate::commands::commit::git;
-use crate::commands::commit::prompt;
+use crate::commands::commit::{changes, context::Context, git, prompt};
 use crate::tui;
 use std::time::Instant;
 
