@@ -1,4 +1,7 @@
-mod command;
+mod changes;
 mod context;
+mod git;
+mod prompt;
+mod run;
 
-pub use command::run;
+pub use run::run;
