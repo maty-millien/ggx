@@ -4,6 +4,7 @@ use std::time::Instant;
 
 pub fn run(draft: bool, base: Option<String>, closes: Vec<String>) -> anyhow::Result<()> {
     let started = Instant::now();
+    git::ensure_clean_worktree()?;
     let upstream = git::upstream()?;
     let context = Context::collect(base, closes)?;
 

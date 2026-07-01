@@ -4,6 +4,7 @@ use std::time::Instant;
 
 pub fn run(target: Option<String>, keep_branch: bool, admin: bool) -> anyhow::Result<()> {
     let started = Instant::now();
+    git::ensure_clean_worktree()?;
     let branch = git::current_branch()?;
     let target = target
         .map(|target| target.trim().to_string())
