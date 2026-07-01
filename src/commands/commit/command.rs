@@ -1,7 +1,7 @@
 use crate::ai;
 use crate::commands::commit::context::Context;
 use crate::git;
-use crate::ui::{self, ChangeRow, ChangeStatus};
+use crate::tui::{self, ChangeRow, ChangeStatus};
 use std::time::Instant;
 
 pub fn run() -> anyhow::Result<()> {
@@ -9,20 +9,25 @@ pub fn run() -> anyhow::Result<()> {
     let context = Context::collect()?;
     let upstream = git::upstream_branch()?;
 
-    ui::step("Analysis complete", started.elapsed());
-    ui::section("Changes");
-    ui::change_rows(&changes(&context));
+    tui::step("Analysis complete", started.elapsed());
+    tui::section("Changes");
+    tui::change_rows(&changes(&context));
 
-    let (message, elapsed) = ui::timed_spinner("Generating commit message", || {
+    let (message, elapsed) = tui::timed_spinner("Generating commit message", || {
         ai::generate(&context.render_prompt())
     })?;
 
-    ui::step("Message generated", elapsed);
-    ui::message(&message);
-    if ui::confirm(&format!("Commit to {}?", context.branch))? {
+    tui::step("Message generated", elapsed);
+    tui::message(&message);
+    let prompt = match upstream.as_deref() {
+        Some(upstream) => format!("Commit and push to {}?", upstream),
+        None => format!("Commit to {}?", context.branch),
+    };
+
+    if tui::confirm(&prompt)? {
         commit_and_push(&context, &message, upstream.as_deref())?;
     } else {
-        ui::warning("Aborted");
+        tui::warning("Aborted");
     }
 
     Ok(())
@@ -30,15 +35,15 @@ pub fn run() -> anyhow::Result<()> {
 
 fn commit_and_push(context: &Context, message: &str, upstream: Option<&str>) -> anyhow::Result<()> {
     if context.stage_before_commit {
-        ui::spinner("Staging changes", git::stage_all)?;
+        tui::spinner("Staging changes", git::stage_all)?;
     }
 
-    ui::spinner("Creating commit", || git::commit(message))?;
-    ui::success("Committed to", &context.branch);
+    tui::spinner("Creating commit", || git::commit(message))?;
+    tui::success("Committed to", &context.branch);
 
     if let Some(upstream) = upstream {
-        ui::spinner("Pushing commit", git::push)?;
-        ui::success("Pushed to", upstream);
+        tui::spinner("Pushing commit", git::push)?;
+        tui::success("Pushed to", upstream);
     }
 
     Ok(())
@@ -79,7 +84,7 @@ fn parse_file_line(line: &str) -> (String, String) {
         let mut parts = line.split('\t');
         return (
             parts.next().unwrap_or_default().to_string(),
-            parts.last().unwrap_or_default().to_string(),
+            parts.next_back().unwrap_or_default().to_string(),
         );
     }
 
@@ -93,7 +98,7 @@ fn parse_numstat(line: &str) -> Option<ParsedChange> {
     let mut parts = line.split('\t');
     let additions = parts.next()?.to_string();
     let deletions = parts.next()?.to_string();
-    let path = parts.last()?.to_string();
+    let path = parts.next_back()?.to_string();
 
     Some(ParsedChange {
         path,

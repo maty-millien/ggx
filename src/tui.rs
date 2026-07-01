@@ -68,10 +68,9 @@ pub fn spinner<T>(
 ) -> anyhow::Result<T> {
     let spinner = ProgressBar::new_spinner();
     spinner.set_style(
-        ProgressStyle::with_template("{spinner:.cyan} {msg}")?
-            .tick_strings(&["◐", "◓", "◑", "◒"]),
+        ProgressStyle::with_template("{spinner:.cyan} {msg}")?.tick_strings(&["◐", "◓", "◑", "◒"]),
     );
-    spinner.set_message(message);
+    spinner.set_message(style(message).bold().to_string());
     spinner.enable_steady_tick(Duration::from_millis(80));
 
     let result = operation();
@@ -126,6 +125,10 @@ fn change_status(status: ChangeStatus) -> console::StyledObject<&'static str> {
 }
 
 fn path(path: &str) -> String {
+    if path.ends_with('/') {
+        return style(path).bold().to_string();
+    }
+
     let Some((dir, file)) = path.rsplit_once('/') else {
         return style(path).bold().to_string();
     };

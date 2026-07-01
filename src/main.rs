@@ -2,7 +2,7 @@ mod ai;
 mod cli;
 mod commands;
 mod git;
-mod ui;
+mod tui;
 
 use crate::cli::{Cli, Command};
 use clap::Parser;
@@ -16,7 +16,7 @@ fn main() -> ExitCode {
     };
 
     if let Err(error) = result {
-        ui::error(&error);
+        tui::error(&error);
         return ExitCode::FAILURE;
     }
 

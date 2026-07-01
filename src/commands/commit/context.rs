@@ -115,7 +115,7 @@ impl Context {
             r#"## Instructions
 
 Generate a concise git commit message for the {change_source} changes.
-Use Conventional Commits when appropriate: feat, fix, refactor, docs, test, chore, build, ci.
+Use Conventional Commits with a non-empty scope in parentheses: feat(scope), fix(scope), refactor(scope), docs(scope), test(scope), chore(scope), build(scope), ci(scope).
 Return only the commit message.
 No markdown.
 No explanation.

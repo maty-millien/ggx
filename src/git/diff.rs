@@ -7,7 +7,7 @@ pub fn staged_files() -> anyhow::Result<String> {
 }
 
 pub fn working_tree_status() -> anyhow::Result<String> {
-    let output = run(&["status", "--short"])?;
+    let output = run(&["status", "--short", "--untracked-files=all"])?;
 
     Ok(output.stdout.trim_end().to_string())
 }
