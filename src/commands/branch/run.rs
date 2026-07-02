@@ -20,7 +20,7 @@ pub fn run(input_prompt: Option<String>) -> anyhow::Result<()> {
         tui::spinner("Pushing branch", || git::push_branch(&branch))?;
         tui::success("Pushed to", &format!("origin/{}", branch));
     } else {
-        tui::warning("Aborted");
+        tui::aborted();
     }
 
     Ok(())

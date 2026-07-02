@@ -21,7 +21,7 @@ pub fn run(keep_branch: bool, admin: bool) -> anyhow::Result<()> {
         "Squash merge PR #{} into {} and {}{}?",
         pull_request.number, pull_request.base, cleanup, admin_label
     ))? {
-        tui::warning("Aborted");
+        tui::aborted();
         return Ok(());
     }
 

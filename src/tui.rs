@@ -1,6 +1,6 @@
-use console::{Term, style};
+use console::{Key, Term, style};
 use indicatif::{ProgressBar, ProgressStyle};
-use std::io::{self, IsTerminal, Read, Write};
+use std::io::{self, IsTerminal, Read};
 use std::time::{Duration, Instant};
 
 pub fn step(label: &str, elapsed: Duration) {
@@ -54,27 +54,56 @@ pub fn block(text: &str) {
 }
 
 pub fn confirm(prompt: &str) -> anyhow::Result<bool> {
-    print!("{} {} [Y/n] ", style("+").green(), style(prompt).bold());
-    io::stdout().flush()?;
+    select(
+        "What would you like to do?",
+        &[
+            Choice::new(confirm_label(prompt), true),
+            Choice::new("Cancel", false),
+        ],
+    )
+}
+
+pub fn select<T: Clone>(prompt: &str, choices: &[Choice<'_, T>]) -> anyhow::Result<T> {
+    anyhow::ensure!(!choices.is_empty(), "select requires at least one choice");
+
+    let term = Term::stdout();
+    let _cursor = CursorGuard::hide(&term)?;
+    let mut selected = 0;
+    let mut rendered = false;
 
     loop {
-        match read_confirm_char()? {
-            '\n' => {
-                println!();
-                rail();
-                return Ok(true);
+        if rendered && io::stdin().is_terminal() {
+            term.clear_last_lines(choices.len() + 1)?;
+        }
+
+        render_select(prompt, choices, selected);
+        rendered = true;
+
+        match read_select_key()? {
+            SelectKey::Confirm => {
+                finish_select(&term, prompt, choices, selected, rendered)?;
+                return Ok(choices[selected].value.clone());
             }
-            'y' | 'Y' => {
-                println!();
-                rail();
-                return Ok(true);
+            SelectKey::Cancel => {
+                if let Some(index) = cancel_choice(choices) {
+                    finish_select(&term, prompt, choices, index, rendered)?;
+                    return Ok(choices[index].value.clone());
+                }
             }
-            'n' | 'N' => {
-                println!();
-                rail();
-                return Ok(false);
+            SelectKey::Next => {
+                selected = (selected + 1) % choices.len();
             }
-            _ => {}
+            SelectKey::Previous => {
+                selected = if selected == 0 {
+                    choices.len() - 1
+                } else {
+                    selected - 1
+                };
+            }
+            SelectKey::Index(index) if index < choices.len() => {
+                selected = index;
+            }
+            SelectKey::Index(_) | SelectKey::Ignore => {}
         }
     }
 }
@@ -117,6 +146,10 @@ pub fn success(label: &str, value: &str) {
 
 pub fn warning(text: &str) {
     println!("{} {}", style("+").green(), style(text).yellow().bold());
+}
+
+pub fn aborted() {
+    println!("{} {}", style("+").red(), style("Aborted").red().bold());
 }
 
 pub fn error(error: &anyhow::Error) {
@@ -249,18 +282,104 @@ fn split_word(word: &str, width: usize) -> Vec<String> {
     parts
 }
 
-fn read_confirm_char() -> anyhow::Result<char> {
+fn render_select<T>(prompt: &str, choices: &[Choice<'_, T>], selected: usize) {
+    println!("{} {}", style("+").green(), style(prompt).bold());
+
+    for (index, choice) in choices.iter().enumerate() {
+        println!("{}", select_line(choice.label, index == selected));
+    }
+}
+
+fn finish_select<T>(
+    term: &Term,
+    prompt: &str,
+    choices: &[Choice<'_, T>],
+    selected: usize,
+    rendered: bool,
+) -> anyhow::Result<()> {
+    if rendered && io::stdin().is_terminal() {
+        term.clear_last_lines(choices.len() + 1)?;
+    }
+
+    println!("{} {}", style("+").green(), style(prompt).bold());
+    println!("{}", selected_line(choices[selected].label));
+    rail();
+
+    Ok(())
+}
+
+fn selected_line(label: &str) -> String {
+    format!("{} {}", rail_text(), style(label).dim())
+}
+
+fn select_line(label: &str, selected: bool) -> String {
+    if selected {
+        return format!("  {} {}", style("●").green(), style(label).bold());
+    }
+
+    format!("  {} {}", style("○").dim(), style(label).dim())
+}
+
+fn confirm_label(prompt: &str) -> &str {
+    prompt.trim().trim_end_matches('?')
+}
+
+fn cancel_choice<T>(choices: &[Choice<'_, T>]) -> Option<usize> {
+    choices
+        .iter()
+        .position(|choice| choice.label.eq_ignore_ascii_case("cancel"))
+}
+
+fn read_select_key() -> anyhow::Result<SelectKey> {
     if io::stdin().is_terminal() {
-        return Ok(Term::stdout().read_char()?);
+        return Ok(match Term::stdout().read_key()? {
+            Key::Enter => SelectKey::Confirm,
+            Key::Escape | Key::CtrlC => SelectKey::Cancel,
+            Key::ArrowDown | Key::Char('j') | Key::Char('J') => SelectKey::Next,
+            Key::ArrowUp | Key::Char('k') | Key::Char('K') => SelectKey::Previous,
+            Key::Char('q') | Key::Char('Q') | Key::Char('n') | Key::Char('N') => SelectKey::Cancel,
+            Key::Char('y') | Key::Char('Y') => SelectKey::Confirm,
+            Key::Char(character) => digit_key(character),
+            _ => SelectKey::Ignore,
+        });
     }
 
     let mut buffer = [0; 1];
     let read = io::stdin().read(&mut buffer)?;
     if read == 0 {
-        return Ok('\n');
+        return Ok(SelectKey::Confirm);
     }
 
-    Ok(buffer[0] as char)
+    Ok(match buffer[0] as char {
+        '\n' | '\r' | 'y' | 'Y' => SelectKey::Confirm,
+        'n' | 'N' | 'q' | 'Q' => SelectKey::Cancel,
+        character => digit_key(character),
+    })
+}
+
+fn digit_key(character: char) -> SelectKey {
+    character
+        .to_digit(10)
+        .and_then(|digit| usize::try_from(digit).ok())
+        .and_then(|digit| digit.checked_sub(1))
+        .map_or(SelectKey::Ignore, SelectKey::Index)
+}
+
+struct CursorGuard<'a> {
+    term: &'a Term,
+}
+
+impl<'a> CursorGuard<'a> {
+    fn hide(term: &'a Term) -> anyhow::Result<Self> {
+        term.hide_cursor()?;
+        Ok(Self { term })
+    }
+}
+
+impl Drop for CursorGuard<'_> {
+    fn drop(&mut self) {
+        let _ = self.term.show_cursor();
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -279,9 +398,33 @@ pub struct ChangeRow {
     pub deletions: Option<String>,
 }
 
+pub struct Choice<'a, T> {
+    label: &'a str,
+    value: T,
+}
+
+impl<'a, T> Choice<'a, T> {
+    pub fn new(label: &'a str, value: T) -> Self {
+        Self { label, value }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum SelectKey {
+    Confirm,
+    Cancel,
+    Next,
+    Previous,
+    Index(usize),
+    Ignore,
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{addition, commit_message, deletion, path, wrap_line};
+    use super::{
+        Choice, addition, cancel_choice, commit_message, confirm_label, deletion, digit_key, path,
+        select_line, selected_line, wrap_line,
+    };
 
     fn disable_colors() {
         console::set_colors_enabled(false);
@@ -338,5 +481,40 @@ mod tests {
             wrap_line("  one two three", 7),
             vec!["  one", "  two", "  three"]
         );
+    }
+
+    #[test]
+    fn select_line_marks_selected_and_unselected_choices() {
+        disable_colors();
+
+        assert_eq!(select_line("Commit", true), "  ● Commit");
+        assert_eq!(select_line("Cancel", false), "  ○ Cancel");
+    }
+
+    #[test]
+    fn selected_line_uses_rail_and_muted_choice() {
+        disable_colors();
+
+        assert_eq!(selected_line("Cancel"), "│ Cancel");
+    }
+
+    #[test]
+    fn confirm_label_removes_trailing_question_mark() {
+        assert_eq!(confirm_label("Commit and push?"), "Commit and push");
+        assert_eq!(confirm_label("Commit and push"), "Commit and push");
+    }
+
+    #[test]
+    fn cancel_choice_finds_case_insensitive_cancel_label() {
+        let choices = [Choice::new("Run", 1), Choice::new("cancel", 2)];
+
+        assert_eq!(cancel_choice(&choices), Some(1));
+    }
+
+    #[test]
+    fn digit_key_uses_one_based_indices() {
+        assert_eq!(digit_key('1'), super::SelectKey::Index(0));
+        assert_eq!(digit_key('3'), super::SelectKey::Index(2));
+        assert_eq!(digit_key('x'), super::SelectKey::Ignore);
     }
 }

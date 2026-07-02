@@ -35,7 +35,7 @@ pub fn run() -> anyhow::Result<()> {
     if tui::confirm(&prompt)? {
         commit_and_push(&context, &message, upstream.as_deref(), has_origin_remote)?;
     } else {
-        tui::warning("Aborted");
+        tui::aborted();
     }
 
     Ok(())

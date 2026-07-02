@@ -15,19 +15,19 @@ ggx is a fast Rust git workflow CLI with AI generated branches, commits, and PR 
 
 ## Key Defaults
 
-| Behavior                           | Default                       |
-| ---------------------------------- | ----------------------------- |
-| Commit input                       | All changes                   |
-| Commit push                        | Auto push if origin exists    |
-| Missing remote                     | Skip push                     |
-| Branch deletion after merge        | Enabled                       |
-| Remote branch deletion after merge | Enabled                       |
-| Merge behavior                     | Full land flow                |
-| Merge strategy                     | Normal merge only             |
-| Squash flow                        | Separate `ggx squash` command |
-| Destructive actions                | Always ask for confirmation   |
-| Sync cleanup                       | Confirm before deleting       |
-| Protected branch merges            | Use `--admin` when needed     |
+| Behavior                           | Default                          |
+| ---------------------------------- | -------------------------------- |
+| Commit input                       | All changes                      |
+| Commit push                        | Auto push if origin exists       |
+| Missing remote                     | Skip push                        |
+| Branch deletion after merge        | Enabled                          |
+| Remote branch deletion after merge | Enabled                          |
+| Merge behavior                     | Full land flow                   |
+| Merge strategy                     | Normal merge only                |
+| Squash flow                        | Separate `ggx squash` command    |
+| Destructive actions                | Always ask with an action prompt |
+| Sync cleanup                       | Confirm before deleting          |
+| Protected branch merges            | Use `--admin` when needed        |
 
 ## Command Flags
 
@@ -71,7 +71,7 @@ Example output: `feat/refresh-auth-session`
 2. Stage all changes, including untracked files.
 3. Generate a commit message from the staged result.
 4. Show a styled changes summary and generated message.
-5. Let the user commit to the current branch or cancel.
+5. Let the user choose the commit action or cancel from an action prompt.
 6. Commit.
 7. Push automatically if upstream exists.
 8. Set upstream and push if origin exists.

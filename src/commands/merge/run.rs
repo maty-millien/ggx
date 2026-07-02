@@ -21,7 +21,7 @@ pub fn run(target: Option<String>, keep_branch: bool, admin: bool) -> anyhow::Re
         "Merge PR #{} into {} and {}{}?",
         pull_request.number, pull_request.base, cleanup, admin_label
     ))? {
-        tui::warning("Aborted");
+        tui::aborted();
         return Ok(());
     }
 

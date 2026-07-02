@@ -51,7 +51,7 @@ pub fn run(draft: bool, closes: Vec<String>) -> anyhow::Result<()> {
         })?;
         tui::success("Created PR", &url);
     } else {
-        tui::warning("Aborted");
+        tui::aborted();
     }
 
     Ok(())
