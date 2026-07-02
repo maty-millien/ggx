@@ -16,11 +16,7 @@ fn main() -> ExitCode {
     let result = match cli.command {
         Command::Branch { prompt } => commands::branch::run(prompt),
         Command::Commit => commands::commit::run(),
-        Command::Pr {
-            draft,
-            base,
-            closes,
-        } => commands::pr::run(draft, base, closes),
+        Command::Pr { draft, closes } => commands::pr::run(draft, closes),
         Command::Merge {
             target,
             keep_branch,

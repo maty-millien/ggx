@@ -13,8 +13,6 @@ pub enum Command {
     Pr {
         #[arg(long)]
         draft: bool,
-        #[arg(long)]
-        base: Option<String>,
         #[arg(long = "closes")]
         closes: Vec<String>,
     },
@@ -50,18 +48,11 @@ mod tests {
 
     #[test]
     fn parses_pr_options() {
-        let cli = Cli::parse_from([
-            "ggx", "pr", "--draft", "--base", "develop", "--closes", "#1", "--closes", "#2",
-        ]);
+        let cli = Cli::parse_from(["ggx", "pr", "--draft", "--closes", "#1", "--closes", "#2"]);
 
         match cli.command {
-            Command::Pr {
-                draft,
-                base,
-                closes,
-            } => {
+            Command::Pr { draft, closes } => {
                 assert!(draft);
-                assert_eq!(base.as_deref(), Some("develop"));
                 assert_eq!(closes, ["#1", "#2"]);
             }
             _ => panic!("expected pr command"),

@@ -9,7 +9,7 @@ ggx is a fast Rust git workflow CLI with AI generated branches, commits, PRs, sq
 | `ggx branch` | Generate and create a branch from current changes                           |
 | `ggx commit` | Stage all changes, generate commit, commit, auto push if origin exists      |
 | `ggx pr`     | Push if needed, generate PR title and body, create PR                       |
-| `ggx ship`   | Smart flow: branch, commit, push, PR                                        |
+| `ggx ship`   | Smart flow: commit and push, PR                                             |
 | `ggx sync`   | Fetch remotes, prune refs, sync default branch, clean stale local branches  |
 | `ggx clean`  | Delete merged and stale branches                                            |
 | `ggx merge`  | Merge branch or PR, delete branch by default, checkout default branch, sync |
@@ -32,15 +32,14 @@ ggx is a fast Rust git workflow CLI with AI generated branches, commits, PRs, sq
 
 ## Global Flags
 
-| Flag              | Purpose                                                                        |
-| ----------------- | ------------------------------------------------------------------------------ |
-| `--admin`         | Unlock privileged cleanup, protected branch actions, and history rewrite flows |
-| `--keep-branch`   | Do not delete branch after merge                                               |
-| `--yes`           | Skip confirmations                                                             |
-| `--dry-run`       | Preview actions                                                                |
-| `--no-push`       | Disable auto push                                                              |
-| `--base <branch>` | Set target base branch                                                         |
-| `--draft`         | Create draft PR                                                                |
+| Flag            | Purpose                                                                        |
+| --------------- | ------------------------------------------------------------------------------ |
+| `--admin`       | Unlock privileged cleanup, protected branch actions, and history rewrite flows |
+| `--keep-branch` | Do not delete branch after merge                                               |
+| `--yes`         | Skip confirmations                                                             |
+| `--dry-run`     | Preview actions                                                                |
+| `--no-push`     | Disable auto push                                                              |
+| `--draft`       | Create draft PR                                                                |
 
 ## Common Workflows
 
@@ -99,7 +98,7 @@ Example output: `feat/refresh-auth-session`
 2. Commit changes if needed.
 3. Push branch if needed.
 4. Create or update PR.
-5. Respect `--draft`, `--yes`, `--no-push`, and `--base`.
+5. Respect `--draft`, `--yes`, and `--no-push`.
 
 ## Sync Behavior
 

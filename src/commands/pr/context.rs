@@ -23,13 +23,9 @@ pub struct Issue {
 }
 
 impl Context {
-    pub fn collect(base: Option<String>, closes: Vec<String>) -> anyhow::Result<Self> {
+    pub fn collect(closes: Vec<String>) -> anyhow::Result<Self> {
         let branch = git::current_branch()?;
-        let base = base
-            .map(|base| base.trim().to_string())
-            .filter(|base| !base.is_empty())
-            .map(Ok)
-            .unwrap_or_else(git::default_base)?;
+        let base = git::default_base()?;
 
         if branch == base {
             anyhow::bail!("Current branch is already the base branch '{}'.", base);

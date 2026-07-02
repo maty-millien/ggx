@@ -91,7 +91,7 @@ pub fn default_base() -> anyhow::Result<String> {
         .find_map(|line| line.trim().strip_prefix("HEAD branch: "))
         .map(str::to_string)
         .filter(|base| !base.is_empty())
-        .ok_or_else(|| anyhow::anyhow!("Could not detect origin default branch. Pass --base."))
+        .ok_or_else(|| anyhow::anyhow!("Could not detect origin default branch."))
 }
 
 pub fn base_ref(base: &str) -> anyhow::Result<String> {

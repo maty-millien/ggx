@@ -22,7 +22,6 @@ brew install maty-millien/tap/ggx
 ggx branch [prompt]          # Generate, create, checkout, and push a branch
 ggx commit                   # Generate a commit message, commit, and push if origin exists
 ggx pr [--draft]             # Generate and open a pull request
-ggx pr --base main           # Create a PR against a specific base branch
 ggx pr --closes 123          # Include issue context in the generated PR
 ggx merge [target]           # Merge a PR, sync the base branch, and delete the branch
 ggx merge --keep-branch      # Merge without deleting the branch
