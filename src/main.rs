@@ -11,7 +11,8 @@ use std::process::ExitCode;
 
 fn main() -> ExitCode {
     let cli = Cli::parse();
-    update::brew_update();
+
+    update::brew();
 
     let result = match cli.command {
         Command::Branch { prompt } => commands::branch::run(prompt),
