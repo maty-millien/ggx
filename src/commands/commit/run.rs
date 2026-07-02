@@ -1,6 +1,6 @@
 use crate::ai;
-use crate::commands::commit::{changes, context::Context, message, prompt};
-use crate::{git, tui};
+use crate::commands::commit::{context::Context, prompt, validation};
+use crate::{changes, git, tui};
 use std::time::Instant;
 
 pub fn run() -> anyhow::Result<()> {
@@ -13,7 +13,10 @@ pub fn run() -> anyhow::Result<()> {
 
     tui::step("Analysis complete", started.elapsed());
     tui::section("Changes");
-    tui::change_rows(&changes::from_context(&context));
+    tui::change_rows(&changes::from_files_and_numstat(
+        &context.files,
+        &context.numstat,
+    ));
 
     let prompt = prompt::render(&context);
     let (message, elapsed) = tui::timed_spinner("Generating commit message", || {
@@ -62,12 +65,12 @@ fn commit_and_push(
 
 fn generate_valid_message(prompt: &str) -> anyhow::Result<String> {
     let first = ai::generate(prompt)?;
-    if message::validate(&first).is_ok() {
+    if validation::validate(&first).is_ok() {
         return Ok(first);
     }
 
     let second = ai::generate(prompt)?;
-    message::validate(&second)
+    validation::validate(&second)
         .map_err(|error| anyhow::anyhow!("AI generated an invalid commit message: {}", error))?;
 
     Ok(second)

@@ -78,3 +78,64 @@ No explanation.
         context.branch, user_prompt, changes, forbidden, notes
     )
 }
+
+#[cfg(test)]
+mod tests {
+    use super::render;
+    use crate::commands::branch::context::Context;
+
+    fn context() -> Context {
+        Context {
+            prompt: Some("name the branch".to_string()),
+            branch: "main".to_string(),
+            change_source: Some("staged"),
+            files: "M  src/main.rs".to_string(),
+            stat: "1 file changed".to_string(),
+            diff: "diff --git a/src/main.rs b/src/main.rs".to_string(),
+            diff_truncated: false,
+        }
+    }
+
+    #[test]
+    fn renders_context_prompt_changes_and_forbidden_name() {
+        let output = render(&context(), Some("feat/existing"));
+
+        assert!(output.contains("## User Prompt"));
+        assert!(output.contains("name the branch"));
+        assert!(output.contains("## Changed Files (staged)"));
+        assert!(output.contains("M  src/main.rs"));
+        assert!(output.contains("## Forbidden Branch Names"));
+        assert!(output.contains("feat/existing"));
+        assert!(!output.contains("Diff was truncated."));
+    }
+
+    #[test]
+    fn omits_optional_sections_when_absent() {
+        let output = render(
+            &Context {
+                prompt: None,
+                change_source: None,
+                diff_truncated: false,
+                ..context()
+            },
+            None,
+        );
+
+        assert!(!output.contains("## User Prompt"));
+        assert!(!output.contains("## Changed Files"));
+        assert!(!output.contains("## Forbidden Branch Names"));
+    }
+
+    #[test]
+    fn includes_truncation_note_when_diff_truncated() {
+        let output = render(
+            &Context {
+                diff_truncated: true,
+                ..context()
+            },
+            None,
+        );
+
+        assert!(output.contains("Diff was truncated."));
+    }
+}

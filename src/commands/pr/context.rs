@@ -97,3 +97,24 @@ fn truncate(value: String, max_chars: usize) -> (String, bool) {
 
     (truncated, true)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::truncate;
+
+    #[test]
+    fn truncate_keeps_short_value() {
+        let (value, truncated) = truncate("short".to_string(), 10);
+
+        assert_eq!(value, "short");
+        assert!(!truncated);
+    }
+
+    #[test]
+    fn truncate_tracks_char_boundary() {
+        let (value, truncated) = truncate("éclair".to_string(), 2);
+
+        assert_eq!(value, "éc");
+        assert!(truncated);
+    }
+}

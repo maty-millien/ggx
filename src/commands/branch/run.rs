@@ -1,4 +1,4 @@
-use crate::commands::branch::{context::Context, name, prompt};
+use crate::commands::branch::{context::Context, prompt, validation};
 use crate::{ai, git, tui};
 use std::time::Instant;
 
@@ -57,5 +57,5 @@ fn generate_unique_branch(context: &Context) -> anyhow::Result<String> {
 fn generate_branch(context: &Context, forbidden: Option<&str>) -> anyhow::Result<String> {
     let output = ai::generate(&prompt::render(context, forbidden))?;
 
-    name::normalize(&output)
+    validation::normalize(&output)
 }

@@ -61,3 +61,44 @@ fn summary(pull_request: &gh::PullRequest) -> String {
 
     lines.join("\n")
 }
+
+#[cfg(test)]
+mod tests {
+    use super::summary;
+    use crate::gh::PullRequest;
+
+    fn pull_request() -> PullRequest {
+        PullRequest {
+            number: "8".to_string(),
+            title: "Add squash".to_string(),
+            url: "https://github.com/owner/repo/pull/8".to_string(),
+            head: "feature".to_string(),
+            base: "main".to_string(),
+            merge_state: "BLOCKED".to_string(),
+            review_decision: String::new(),
+        }
+    }
+
+    #[test]
+    fn summary_renders_core_fields() {
+        let output = summary(&pull_request());
+
+        assert!(output.contains("#8 Add squash"));
+        assert!(output.contains("https://github.com/owner/repo/pull/8"));
+        assert!(output.contains("feature -> main"));
+        assert!(output.contains("Merge state: BLOCKED"));
+        assert!(!output.contains("Review:"));
+    }
+
+    #[test]
+    fn summary_uses_unknown_for_empty_merge_state_and_includes_review() {
+        let output = summary(&PullRequest {
+            merge_state: String::new(),
+            review_decision: "CHANGES_REQUESTED".to_string(),
+            ..pull_request()
+        });
+
+        assert!(output.contains("Merge state: unknown"));
+        assert!(output.contains("Review: CHANGES_REQUESTED"));
+    }
+}

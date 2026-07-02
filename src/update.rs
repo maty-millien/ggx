@@ -33,3 +33,23 @@ fn update_command() -> Command {
         .stderr(Stdio::null());
     command
 }
+
+#[cfg(test)]
+mod tests {
+    use super::should_skip;
+
+    #[test]
+    fn should_skip_in_ci() {
+        assert!(should_skip(true, true));
+    }
+
+    #[test]
+    fn should_skip_without_brew() {
+        assert!(should_skip(false, false));
+    }
+
+    #[test]
+    fn should_not_skip_outside_ci_with_brew() {
+        assert!(!should_skip(false, true));
+    }
+}

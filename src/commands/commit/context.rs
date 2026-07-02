@@ -232,7 +232,7 @@ fn take_chars(value: &str, max_chars: usize) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::budget_diff;
+    use super::{budget_diff, truncate};
 
     #[test]
     fn budget_diff_keeps_single_small_diff() {
@@ -285,5 +285,31 @@ mod tests {
         assert!(budgeted.value.is_empty());
         assert!(!budgeted.total_truncated);
         assert!(!budgeted.file_truncated);
+    }
+
+    #[test]
+    fn budget_diff_handles_zero_budget() {
+        let budgeted = budget_diff("diff --git a/a b/a\n+hello\n".to_string(), 0);
+
+        assert!(budgeted.value.is_empty());
+        assert!(budgeted.total_truncated);
+        assert!(budgeted.file_truncated);
+    }
+
+    #[test]
+    fn budget_diff_truncates_plain_text_without_diff_sections() {
+        let budgeted = budget_diff("plain text diff".to_string(), 5);
+
+        assert_eq!(budgeted.value, "plain");
+        assert!(budgeted.total_truncated);
+        assert!(budgeted.file_truncated);
+    }
+
+    #[test]
+    fn truncate_tracks_char_boundary() {
+        let (value, truncated) = truncate("éclair".to_string(), 2);
+
+        assert_eq!(value, "éc");
+        assert!(truncated);
     }
 }

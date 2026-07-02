@@ -1,4 +1,3 @@
-mod changes;
 mod context;
 mod prompt;
 mod run;

@@ -132,3 +132,26 @@ fn json_string(value: &serde_json::Value, key: &str) -> String {
         })
         .unwrap_or_default()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::json_string;
+    use serde_json::json;
+
+    #[test]
+    fn json_string_reads_strings_and_numbers() {
+        let value = json!({ "title": "Hello", "number": 42 });
+
+        assert_eq!(json_string(&value, "title"), "Hello");
+        assert_eq!(json_string(&value, "number"), "42");
+    }
+
+    #[test]
+    fn json_string_defaults_for_missing_or_non_scalar_values() {
+        let value = json!({ "labels": ["bug"], "closed": false });
+
+        assert_eq!(json_string(&value, "missing"), "");
+        assert_eq!(json_string(&value, "labels"), "");
+        assert_eq!(json_string(&value, "closed"), "");
+    }
+}

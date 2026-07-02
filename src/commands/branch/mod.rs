@@ -1,6 +1,6 @@
 mod context;
-mod name;
 mod prompt;
 mod run;
+mod validation;
 
 pub use run::run;

@@ -44,3 +44,46 @@ fn first_content_line(raw: &str) -> &str {
         .find(|line| !line.is_empty() && !line.starts_with("```"))
         .unwrap_or_default()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::normalize;
+
+    #[test]
+    fn accepts_allowed_prefixes() {
+        for prefix in ["feat", "fix", "refactor", "docs", "test", "chore"] {
+            let raw = format!("{}/short-name", prefix);
+
+            assert_eq!(normalize(&raw).unwrap(), raw);
+        }
+    }
+
+    #[test]
+    fn ignores_markdown_fences_and_whitespace() {
+        let raw = "\n```text\n\n  FEAT/Add Thing  \n```\n";
+
+        assert_eq!(normalize(raw).unwrap(), "feat/addthing");
+    }
+
+    #[test]
+    fn normalizes_uppercase_and_repeated_separators() {
+        let raw = "FIX/--Clean---Branch!!!";
+
+        assert_eq!(normalize(raw).unwrap(), "fix/clean-branch");
+    }
+
+    #[test]
+    fn rejects_invalid_prefix() {
+        assert!(normalize("style/buttons").is_err());
+    }
+
+    #[test]
+    fn rejects_missing_slug() {
+        assert!(normalize("feat/---").is_err());
+    }
+
+    #[test]
+    fn rejects_extra_slash() {
+        assert!(normalize("feat/one/two").is_err());
+    }
+}

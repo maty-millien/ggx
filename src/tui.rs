@@ -221,9 +221,9 @@ fn wrap_line(line: &str, width: usize) -> Vec<String> {
         current.push_str(word);
     }
 
-    if current.is_empty() {
+    if current.is_empty() && lines.is_empty() {
         lines.push(line.to_string());
-    } else {
+    } else if !current.is_empty() {
         lines.push(format!("{}{}", indent, current));
     }
 
@@ -277,4 +277,66 @@ pub struct ChangeRow {
     pub path: String,
     pub additions: Option<String>,
     pub deletions: Option<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{addition, commit_message, deletion, path, wrap_line};
+
+    fn disable_colors() {
+        console::set_colors_enabled(false);
+    }
+
+    #[test]
+    fn path_formats_plain_file_and_nested_path() {
+        disable_colors();
+
+        assert_eq!(path("README.md"), "README.md");
+        assert_eq!(path("src/main.rs"), "src/main.rs");
+        assert_eq!(path("src/"), "src/");
+    }
+
+    #[test]
+    fn addition_suppresses_empty_zero_and_binary_values() {
+        disable_colors();
+
+        assert_eq!(addition(None), "");
+        assert_eq!(addition(Some("0")), "");
+        assert_eq!(addition(Some("-")), "");
+        assert_eq!(addition(Some("3")), " +3");
+    }
+
+    #[test]
+    fn deletion_suppresses_empty_zero_and_binary_values() {
+        disable_colors();
+
+        assert_eq!(deletion(None), "");
+        assert_eq!(deletion(Some("0")), "");
+        assert_eq!(deletion(Some("-")), "");
+        assert_eq!(deletion(Some("2")), " -2");
+    }
+
+    #[test]
+    fn commit_message_formats_conventional_type_and_falls_back() {
+        disable_colors();
+
+        assert_eq!(
+            commit_message("feat(cli): add command"),
+            "feat(cli): add command"
+        );
+        assert_eq!(commit_message("plain message"), "plain message");
+    }
+
+    #[test]
+    fn wrap_line_wraps_long_words() {
+        assert_eq!(wrap_line("abcdefgh", 3), vec!["abc", "def", "gh"]);
+    }
+
+    #[test]
+    fn wrap_line_preserves_indentation() {
+        assert_eq!(
+            wrap_line("  one two three", 7),
+            vec!["  one", "  two", "  three"]
+        );
+    }
 }

@@ -1,4 +1,5 @@
 mod ai;
+mod changes;
 mod cli;
 mod commands;
 mod gh;

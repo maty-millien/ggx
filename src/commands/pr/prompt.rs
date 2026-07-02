@@ -86,3 +86,53 @@ URL: {}
         .collect::<Vec<_>>()
         .join("")
 }
+
+#[cfg(test)]
+mod tests {
+    use super::render;
+    use crate::commands::pr::context::{Context, Issue};
+
+    fn context() -> Context {
+        Context {
+            branch: "feature".to_string(),
+            base: "main".to_string(),
+            files: "M  src/main.rs".to_string(),
+            stat: "1 file changed".to_string(),
+            numstat: "1\t0\tsrc/main.rs".to_string(),
+            commits: "abc123 feat(cli): add command".to_string(),
+            diff: "diff --git a/src/main.rs b/src/main.rs".to_string(),
+            issues: vec![Issue {
+                reference: "#12".to_string(),
+                number: "12".to_string(),
+                title: "Fix thing".to_string(),
+                body: "Issue body".to_string(),
+                url: "https://github.com/owner/repo/issues/12".to_string(),
+            }],
+        }
+    }
+
+    #[test]
+    fn renders_pr_context_and_issues() {
+        let output = render(&context());
+
+        assert!(output.contains("## Branch"));
+        assert!(output.contains("feature"));
+        assert!(output.contains("## Base"));
+        assert!(output.contains("main"));
+        assert!(output.contains("## Commits"));
+        assert!(output.contains("abc123 feat(cli): add command"));
+        assert!(output.contains("## Issues To Close"));
+        assert!(output.contains("Reference: #12"));
+        assert!(output.contains("Fix thing"));
+    }
+
+    #[test]
+    fn omits_issues_section_when_empty() {
+        let output = render(&Context {
+            issues: Vec::new(),
+            ..context()
+        });
+
+        assert!(!output.contains("## Issues To Close"));
+    }
+}

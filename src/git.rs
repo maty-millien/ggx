@@ -160,3 +160,19 @@ pub fn checkout(branch: &str) -> anyhow::Result<()> {
 fn has_output(output: &str) -> bool {
     !output.trim().is_empty()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::has_output;
+
+    #[test]
+    fn has_output_rejects_empty_or_whitespace() {
+        assert!(!has_output(""));
+        assert!(!has_output(" \n\t "));
+    }
+
+    #[test]
+    fn has_output_accepts_non_whitespace() {
+        assert!(has_output("main\n"));
+    }
+}
