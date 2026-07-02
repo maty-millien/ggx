@@ -1,11 +1,9 @@
 mod ai;
-mod changes;
 mod cli;
 mod commands;
-mod gh;
-mod git;
 mod tui;
 mod update;
+mod vcs;
 
 use crate::cli::{Cli, Command};
 use clap::Parser;

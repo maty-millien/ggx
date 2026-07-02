@@ -1,10 +1,11 @@
-use crate::{gh, git, tui};
+use crate::tui;
+use crate::vcs::{git, github};
 use std::time::Instant;
 
 pub fn run(target: Option<String>, keep_branch: bool, admin: bool) -> anyhow::Result<()> {
     let started = Instant::now();
     git::ensure_clean_worktree()?;
-    let pull_request = gh::pull_request(target.as_deref())?;
+    let pull_request = github::pull_request(target.as_deref())?;
 
     tui::step("Pull request found", started.elapsed());
     tui::section("Pull Request");
@@ -25,7 +26,7 @@ pub fn run(target: Option<String>, keep_branch: bool, admin: bool) -> anyhow::Re
     }
 
     tui::spinner("Merging pull request", || {
-        gh::merge(target.as_deref(), keep_branch, admin)
+        github::merge(target.as_deref(), keep_branch, admin)
     })?;
     tui::success("Merged PR", &format!("#{}", pull_request.number));
 
@@ -44,7 +45,7 @@ fn value_or_unknown(value: &str) -> &str {
     if value.is_empty() { "unknown" } else { value }
 }
 
-fn summary(pull_request: &gh::PullRequest) -> String {
+fn summary(pull_request: &github::PullRequest) -> String {
     let mut lines = vec![
         format!("#{} {}", pull_request.number, pull_request.title),
         pull_request.url.clone(),
@@ -65,7 +66,7 @@ fn summary(pull_request: &gh::PullRequest) -> String {
 #[cfg(test)]
 mod tests {
     use super::summary;
-    use crate::gh::PullRequest;
+    use crate::vcs::github::PullRequest;
 
     fn pull_request() -> PullRequest {
         PullRequest {

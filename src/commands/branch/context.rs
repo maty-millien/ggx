@@ -1,4 +1,4 @@
-use crate::git;
+use crate::vcs::git;
 
 const MAX_DIFF_CHARS: usize = 16_000;
 

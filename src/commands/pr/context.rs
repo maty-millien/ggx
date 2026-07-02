@@ -1,4 +1,4 @@
-use crate::{gh, git};
+use crate::vcs::{git, github};
 
 const MAX_DIFF_CHARS: usize = 16_000;
 const MAX_ISSUE_BODY_CHARS: usize = 8_000;
@@ -36,19 +36,19 @@ impl Context {
         }
 
         let base_ref = git::base_ref(&base)?;
-        let files = crate::git::run(&["diff", "--name-status", &format!("{}...HEAD", base_ref)])?
+        let files = git::run(&["diff", "--name-status", &format!("{}...HEAD", base_ref)])?
             .trim()
             .to_string();
-        let stat = crate::git::run(&["diff", "--stat", &format!("{}...HEAD", base_ref)])?
+        let stat = git::run(&["diff", "--stat", &format!("{}...HEAD", base_ref)])?
             .trim()
             .to_string();
-        let numstat = crate::git::run(&["diff", "--numstat", &format!("{}...HEAD", base_ref)])?
+        let numstat = git::run(&["diff", "--numstat", &format!("{}...HEAD", base_ref)])?
             .trim()
             .to_string();
-        let commits = crate::git::run(&["log", "--oneline", &format!("{}..HEAD", base_ref)])?
+        let commits = git::run(&["log", "--oneline", &format!("{}..HEAD", base_ref)])?
             .trim()
             .to_string();
-        let diff = crate::git::run(&["diff", "--unified=3", &format!("{}...HEAD", base_ref)])?
+        let diff = git::run(&["diff", "--unified=3", &format!("{}...HEAD", base_ref)])?
             .trim()
             .to_string();
 
@@ -76,7 +76,7 @@ impl Context {
 }
 
 fn collect_issue(reference: String) -> anyhow::Result<Issue> {
-    let issue = gh::issue(&reference)?;
+    let issue = github::issue(&reference)?;
     let (body, _) = truncate(issue.body, MAX_ISSUE_BODY_CHARS);
 
     Ok(Issue {

@@ -1,5 +1,6 @@
 use crate::commands::pr::{context::Context, prompt, validation};
-use crate::{ai, changes, gh, git, tui};
+use crate::vcs::{changes, git, github};
+use crate::{ai, tui};
 use std::time::Instant;
 
 pub fn run(draft: bool, base: Option<String>, closes: Vec<String>) -> anyhow::Result<()> {
@@ -33,7 +34,7 @@ pub fn run(draft: bool, base: Option<String>, closes: Vec<String>) -> anyhow::Re
         tui::success("Pushed to", &upstream);
         tui::rail();
         let url = tui::spinner("Creating pull request", || {
-            gh::create_pr(
+            github::create_pr(
                 &context.base,
                 &context.branch,
                 &pull_request.title,

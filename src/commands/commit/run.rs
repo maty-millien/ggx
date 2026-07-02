@@ -1,6 +1,7 @@
 use crate::ai;
 use crate::commands::commit::{context::Context, prompt, validation};
-use crate::{changes, git, tui};
+use crate::tui;
+use crate::vcs::{changes, git};
 use std::time::Instant;
 
 pub fn run() -> anyhow::Result<()> {

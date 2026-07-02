@@ -1,4 +1,4 @@
-use crate::git;
+use crate::vcs::git;
 use std::fs;
 use std::path::{Path, PathBuf};
 

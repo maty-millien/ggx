@@ -1,5 +1,6 @@
 use crate::commands::branch::{context::Context, prompt, validation};
-use crate::{ai, git, tui};
+use crate::vcs::git;
+use crate::{ai, tui};
 use std::time::Instant;
 
 pub fn run(input_prompt: Option<String>) -> anyhow::Result<()> {
