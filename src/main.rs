@@ -17,6 +17,7 @@ fn main() -> ExitCode {
         Command::Branch { prompt } => commands::branch::run(prompt),
         Command::Commit => commands::commit::run(),
         Command::Pr { draft, closes } => commands::pr::run(draft, closes),
+        Command::Sync => commands::sync::run(),
         Command::Merge {
             target,
             keep_branch,

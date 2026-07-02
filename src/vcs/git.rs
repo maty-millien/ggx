@@ -1,5 +1,10 @@
 use std::process::{Command, Stdio};
 
+pub struct LocalBranch {
+    pub name: String,
+    pub upstream_status: String,
+}
+
 pub fn run(args: &[&str]) -> anyhow::Result<String> {
     let output = Command::new("git")
         .args(args)
@@ -157,13 +162,59 @@ pub fn checkout(branch: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+pub fn merged_branches(base: &str) -> anyhow::Result<Vec<String>> {
+    let output = run(&["branch", "--merged", base, "--format", "%(refname:short)"])?;
+
+    Ok(parse_branch_names(&output))
+}
+
+pub fn local_branches() -> anyhow::Result<Vec<LocalBranch>> {
+    let output = run(&["branch", "--format", "%(refname:short)%09%(upstream:track)"])?;
+
+    Ok(parse_local_branches(&output))
+}
+
+pub fn delete_branch(name: &str) -> anyhow::Result<()> {
+    run(&["branch", "-d", name])?;
+
+    Ok(())
+}
+
 fn has_output(output: &str) -> bool {
     !output.trim().is_empty()
 }
 
+fn parse_branch_names(output: &str) -> Vec<String> {
+    output
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .map(str::to_string)
+        .collect()
+}
+
+fn parse_local_branches(output: &str) -> Vec<LocalBranch> {
+    output
+        .lines()
+        .filter_map(|line| {
+            let line = line.trim();
+            if line.is_empty() {
+                return None;
+            }
+
+            let (name, upstream_status) = line.split_once('\t').unwrap_or((line, ""));
+
+            Some(LocalBranch {
+                name: name.trim().to_string(),
+                upstream_status: upstream_status.trim().to_string(),
+            })
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
-    use super::has_output;
+    use super::{has_output, parse_branch_names, parse_local_branches};
 
     #[test]
     fn has_output_rejects_empty_or_whitespace() {
@@ -174,5 +225,23 @@ mod tests {
     #[test]
     fn has_output_accepts_non_whitespace() {
         assert!(has_output("main\n"));
+    }
+
+    #[test]
+    fn parse_branch_names_omits_empty_lines() {
+        assert_eq!(
+            parse_branch_names("main\n\nfeature\n"),
+            vec!["main".to_string(), "feature".to_string()]
+        );
+    }
+
+    #[test]
+    fn parse_local_branches_reads_optional_upstream_status() {
+        let branches = parse_local_branches("main\t\nfeature\t[gone]\n");
+
+        assert_eq!(branches[0].name, "main");
+        assert_eq!(branches[0].upstream_status, "");
+        assert_eq!(branches[1].name, "feature");
+        assert_eq!(branches[1].upstream_status, "[gone]");
     }
 }

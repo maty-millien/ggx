@@ -16,6 +16,7 @@ pub enum Command {
         #[arg(long = "closes")]
         closes: Vec<String>,
     },
+    Sync,
     Merge {
         target: Option<String>,
         #[arg(long)]
@@ -56,6 +57,16 @@ mod tests {
                 assert_eq!(closes, ["#1", "#2"]);
             }
             _ => panic!("expected pr command"),
+        }
+    }
+
+    #[test]
+    fn parses_sync_command() {
+        let cli = Cli::parse_from(["ggx", "sync"]);
+
+        match cli.command {
+            Command::Sync => {}
+            _ => panic!("expected sync command"),
         }
     }
 

@@ -23,6 +23,7 @@ ggx branch [prompt]          # Generate, create, checkout, and push a branch
 ggx commit                   # Generate a commit message, commit, and push if origin exists
 ggx pr [--draft]             # Generate and open a pull request
 ggx pr --closes 123          # Include issue context in the generated PR
+ggx sync                     # Sync the default branch and clean safe local branches
 ggx merge [target]           # Merge a PR, sync the base branch, and delete the branch
 ggx merge --keep-branch      # Merge without deleting the branch
 ggx squash                   # Squash merge the current PR
@@ -37,6 +38,7 @@ Use `--admin` with `merge` or `squash` when the GitHub operation needs elevated 
 ggx branch "add billing webhook retries"
 ggx commit
 ggx pr --draft
+ggx sync
 ggx merge
 ```
 
@@ -45,6 +47,7 @@ ggx merge
 - Reads your current git state and diffs.
 - Asks Codex for concise branch names, commit messages, and PR copy.
 - Shows the generated output before taking action.
+- Requires a clean worktree before syncing or merging.
 - Uses GitHub CLI for pull request creation, merge, squash, and branch cleanup.
 
 ## License
