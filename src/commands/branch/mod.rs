@@ -1,5 +1,4 @@
 mod context;
-mod git;
 mod name;
 mod prompt;
 mod run;

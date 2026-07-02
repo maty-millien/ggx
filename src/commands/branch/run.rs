@@ -1,5 +1,5 @@
-use crate::commands::branch::{context::Context, git, name, prompt};
-use crate::{ai, tui};
+use crate::commands::branch::{context::Context, name, prompt};
+use crate::{ai, git, tui};
 use std::time::Instant;
 
 pub fn run(input_prompt: Option<String>) -> anyhow::Result<()> {
@@ -14,9 +14,9 @@ pub fn run(input_prompt: Option<String>) -> anyhow::Result<()> {
     tui::message(&branch);
 
     if tui::confirm(&format!("Create, checkout, and push {}?", branch))? {
-        tui::spinner("Creating branch", || git::create(&branch))?;
+        tui::spinner("Creating branch", || git::create_branch(&branch))?;
         tui::success("Checked out", &branch);
-        tui::spinner("Pushing branch", || git::push(&branch))?;
+        tui::spinner("Pushing branch", || git::push_branch(&branch))?;
         tui::success("Pushed to", &format!("origin/{}", branch));
     } else {
         tui::warning("Aborted");

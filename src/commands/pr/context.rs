@@ -1,4 +1,4 @@
-use crate::commands::pr::{git, github};
+use crate::{gh, git};
 
 const MAX_DIFF_CHARS: usize = 16_000;
 const MAX_ISSUE_BODY_CHARS: usize = 8_000;
@@ -76,7 +76,7 @@ impl Context {
 }
 
 fn collect_issue(reference: String) -> anyhow::Result<Issue> {
-    let issue = github::issue(&reference)?;
+    let issue = gh::issue(&reference)?;
     let (body, _) = truncate(issue.body, MAX_ISSUE_BODY_CHARS);
 
     Ok(Issue {

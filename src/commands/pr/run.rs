@@ -1,5 +1,5 @@
-use crate::commands::pr::{changes, context::Context, git, github, prompt};
-use crate::{ai, tui};
+use crate::commands::pr::{changes, context::Context, prompt};
+use crate::{ai, gh, git, tui};
 use std::time::Instant;
 
 pub fn run(draft: bool, base: Option<String>, closes: Vec<String>) -> anyhow::Result<()> {
@@ -26,10 +26,11 @@ pub fn run(draft: bool, base: Option<String>, closes: Vec<String>) -> anyhow::Re
     let confirm_prompt = format!("Sync {} and create PR into {}?", upstream, context.base);
 
     if tui::confirm(&confirm_prompt)? {
-        git::push(&upstream)?;
+        tui::spinner("Pushing branch", git::push)?;
+        tui::success("Pushed to", &upstream);
         tui::rail();
         let url = tui::spinner("Creating pull request", || {
-            github::create_pr(
+            gh::create_pr(
                 &context.base,
                 &context.branch,
                 &pull_request.title,

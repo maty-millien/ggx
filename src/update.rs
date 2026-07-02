@@ -3,7 +3,7 @@ use std::process::{Command, Stdio};
 
 const BREW_UPDATE_COMMAND: &str = "brew update && brew upgrade ggx";
 
-pub fn start_brew_update() {
+pub fn brew_update() {
     if should_skip(env::var_os("CI").is_some(), brew_exists()) {
         return;
     }

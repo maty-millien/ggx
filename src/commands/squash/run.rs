@@ -1,11 +1,10 @@
-use crate::commands::merge::github;
-use crate::tui;
+use crate::{gh, git, tui};
 use std::time::Instant;
 
 pub fn run(keep_branch: bool, admin: bool) -> anyhow::Result<()> {
     let started = Instant::now();
-    ensure_clean_worktree()?;
-    let pull_request = github::pull_request(None)?;
+    git::ensure_clean_worktree()?;
+    let pull_request = gh::pull_request(None)?;
 
     tui::step("Pull request found", started.elapsed());
     tui::section("Pull Request");
@@ -26,44 +25,17 @@ pub fn run(keep_branch: bool, admin: bool) -> anyhow::Result<()> {
     }
 
     tui::spinner("Squash merging pull request", || {
-        github::squash(None, keep_branch, admin)
+        gh::squash(None, keep_branch, admin)
     })?;
     tui::success("Squash merged PR", &format!("#{}", pull_request.number));
 
     tui::rail();
     tui::spinner("Syncing base branch", || {
-        checkout(&pull_request.base)?;
-        pull()?;
-        fetch()
+        git::checkout(&pull_request.base)?;
+        git::pull_ff_only()?;
+        git::fetch_all_prune()
     })?;
     tui::success("Synced", &pull_request.base);
-
-    Ok(())
-}
-
-fn ensure_clean_worktree() -> anyhow::Result<()> {
-    let status = crate::git::run(&["status", "--porcelain"])?;
-    if !status.trim().is_empty() {
-        anyhow::bail!("Working tree is not clean. Commit or stash your changes first.");
-    }
-
-    Ok(())
-}
-
-fn fetch() -> anyhow::Result<()> {
-    crate::git::run(&["fetch", "--all", "--prune"])?;
-
-    Ok(())
-}
-
-fn pull() -> anyhow::Result<()> {
-    crate::git::run(&["pull", "--ff-only"])?;
-
-    Ok(())
-}
-
-fn checkout(branch: &str) -> anyhow::Result<()> {
-    crate::git::run(&["checkout", branch])?;
 
     Ok(())
 }
@@ -72,7 +44,7 @@ fn value_or_unknown(value: &str) -> &str {
     if value.is_empty() { "unknown" } else { value }
 }
 
-fn summary(pull_request: &github::PullRequest) -> String {
+fn summary(pull_request: &gh::PullRequest) -> String {
     let mut lines = vec![
         format!("#{} {}", pull_request.number, pull_request.title),
         pull_request.url.clone(),

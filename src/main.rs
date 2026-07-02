@@ -1,6 +1,7 @@
 mod ai;
 mod cli;
 mod commands;
+mod gh;
 mod git;
 mod tui;
 mod update;
@@ -11,7 +12,7 @@ use std::process::ExitCode;
 
 fn main() -> ExitCode {
     let cli = Cli::parse();
-    update::start_brew_update();
+    update::brew_update();
 
     let result = match cli.command {
         Command::Branch { prompt } => commands::branch::run(prompt),

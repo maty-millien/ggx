@@ -1,5 +1,12 @@
 use std::process::{Command, Stdio};
 
+pub struct Issue {
+    pub number: String,
+    pub title: String,
+    pub body: String,
+    pub url: String,
+}
+
 pub struct PullRequest {
     pub number: String,
     pub title: String,
@@ -8,6 +15,42 @@ pub struct PullRequest {
     pub base: String,
     pub merge_state: String,
     pub review_decision: String,
+}
+
+pub fn issue(reference: &str) -> anyhow::Result<Issue> {
+    let output = run(&[
+        "issue",
+        "view",
+        reference,
+        "--json",
+        "number,title,body,url",
+    ])?;
+    let value: serde_json::Value = serde_json::from_str(&output)?;
+
+    Ok(Issue {
+        number: json_string(&value, "number"),
+        title: json_string(&value, "title"),
+        body: json_string(&value, "body"),
+        url: json_string(&value, "url"),
+    })
+}
+
+pub fn create_pr(
+    base: &str,
+    branch: &str,
+    title: &str,
+    body: &str,
+    draft: bool,
+) -> anyhow::Result<String> {
+    let mut args = vec![
+        "pr", "create", "--base", base, "--head", branch, "--title", title, "--body", body,
+    ];
+
+    if draft {
+        args.push("--draft");
+    }
+
+    Ok(run(&args)?.trim().to_string())
 }
 
 pub fn pull_request(target: Option<&str>) -> anyhow::Result<PullRequest> {
@@ -21,7 +64,7 @@ pub fn pull_request(target: Option<&str>) -> anyhow::Result<PullRequest> {
         args.insert(2, target);
     }
 
-    let output = gh(&args)?;
+    let output = run(&args)?;
     let value: serde_json::Value = serde_json::from_str(&output)?;
 
     Ok(PullRequest {
@@ -61,10 +104,10 @@ fn merge_with_strategy(
         args.push("--admin");
     }
 
-    Ok(gh(&args)?.trim().to_string())
+    Ok(run(&args)?.trim().to_string())
 }
 
-fn gh(args: &[&str]) -> anyhow::Result<String> {
+fn run(args: &[&str]) -> anyhow::Result<String> {
     let output = Command::new("gh")
         .args(args)
         .stderr(Stdio::piped())
