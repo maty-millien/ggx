@@ -20,7 +20,7 @@ brew install maty-millien/tap/ggx
 
 ```sh
 ggx branch [prompt]          # Generate, create, checkout, and push a branch
-ggx commit                   # Generate a commit message, commit, and push if upstream exists
+ggx commit                   # Generate a commit message, commit, and push if origin exists
 ggx pr [--draft]             # Generate and open a pull request
 ggx pr --base main           # Create a PR against a specific base branch
 ggx pr --closes 123          # Include issue context in the generated PR

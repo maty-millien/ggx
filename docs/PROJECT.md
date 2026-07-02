@@ -7,7 +7,7 @@ ggx is a fast Rust git workflow CLI with AI generated branches, commits, PRs, sq
 | Command      | Purpose                                                                     |
 | ------------ | --------------------------------------------------------------------------- |
 | `ggx branch` | Generate and create a branch from current changes                           |
-| `ggx commit` | Generate commit from staged or unstaged changes, commit, auto push if upstream exists |
+| `ggx commit` | Stage all changes, generate commit, commit, auto push if origin exists      |
 | `ggx pr`     | Push if needed, generate PR title and body, create PR                       |
 | `ggx ship`   | Smart flow: branch, commit, push, PR                                        |
 | `ggx sync`   | Fetch remotes, prune refs, sync default branch, clean stale local branches  |
@@ -19,9 +19,9 @@ ggx is a fast Rust git workflow CLI with AI generated branches, commits, PRs, sq
 
 | Behavior                           | Default                       |
 | ---------------------------------- | ----------------------------- |
-| Commit input                       | Staged changes                |
-| Commit push                        | Auto push if upstream exists  |
-| Missing upstream                   | Skip push                     |
+| Commit input                       | All changes                   |
+| Commit push                        | Auto push if origin exists    |
+| Missing remote                     | Skip push                     |
 | Branch deletion after merge        | Enabled                       |
 | Remote branch deletion after merge | Enabled                       |
 | Merge behavior                     | Full land flow                |
@@ -44,20 +44,20 @@ ggx is a fast Rust git workflow CLI with AI generated branches, commits, PRs, sq
 
 ## Common Workflows
 
-| Workflow                            | Command                                    |
-| ----------------------------------- | ------------------------------------------ |
-| Create branch from current changes  | `ggx branch`                               |
-| Create branch from prompt           | `ggx branch "add stripe webhook handling"` |
-| Commit staged or unstaged changes and auto push | `ggx commit`                               |
-| Create PR                           | `ggx pr`                                   |
-| Create draft PR                     | `ggx pr --draft`                           |
-| Branch, commit, push, PR            | `ggx ship`                                 |
-| Squash branch before PR             | `ggx squash`                               |
-| Merge PR and clean branch           | `ggx merge`                                |
-| Merge but keep branch               | `ggx merge --keep-branch`                  |
-| Full sync and cleanup               | `ggx sync`                                 |
-| Preview cleanup                     | `ggx clean --dry-run`                      |
-| Admin sync and cleanup              | `ggx sync --admin --yes`                   |
+| Workflow                                    | Command                                    |
+| ------------------------------------------- | ------------------------------------------ |
+| Create branch from current changes          | `ggx branch`                               |
+| Create branch from prompt                   | `ggx branch "add stripe webhook handling"` |
+| Stage and commit all changes with auto push | `ggx commit`                               |
+| Create PR                                   | `ggx pr`                                   |
+| Create draft PR                             | `ggx pr --draft`                           |
+| Branch, commit, push, PR                    | `ggx ship`                                 |
+| Squash branch before PR                     | `ggx squash`                               |
+| Merge PR and clean branch                   | `ggx merge`                                |
+| Merge but keep branch                       | `ggx merge --keep-branch`                  |
+| Full sync and cleanup                       | `ggx sync`                                 |
+| Preview cleanup                             | `ggx clean --dry-run`                      |
+| Admin sync and cleanup                      | `ggx sync --admin --yes`                   |
 
 ## Branch Behavior
 
@@ -72,14 +72,15 @@ Example output: `feat/refresh-auth-session`
 
 ## Commit Behavior
 
-1. Use staged changes by default.
-2. If nothing is staged, use unstaged changes and stage all after confirmation.
-3. Generate commit message.
+1. Fail fast if conflicts are unresolved.
+2. Stage all changes, including untracked files.
+3. Generate a commit message from the staged result.
 4. Show a styled changes summary and generated message.
 5. Let the user commit to the current branch or cancel.
 6. Commit.
 7. Push automatically if upstream exists.
-8. Skip push if upstream is missing.
+8. Set upstream and push if origin exists.
+9. Skip push if origin is missing.
 
 ## PR Behavior
 

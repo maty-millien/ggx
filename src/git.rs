@@ -51,10 +51,23 @@ pub fn current_branch() -> anyhow::Result<String> {
     Ok(branch)
 }
 
+pub fn current_branch_name() -> anyhow::Result<String> {
+    run(&["symbolic-ref", "--short", "HEAD"]).map(|output| output.trim().to_string())
+}
+
 pub fn ensure_clean_worktree() -> anyhow::Result<()> {
     let status = run(&["status", "--porcelain"])?;
     if !status.trim().is_empty() {
         anyhow::bail!("Working tree is not clean. Commit or stash your changes first.");
+    }
+
+    Ok(())
+}
+
+pub fn ensure_no_conflicts() -> anyhow::Result<()> {
+    let unmerged = run(&["ls-files", "--unmerged"])?;
+    if !unmerged.trim().is_empty() {
+        anyhow::bail!("Resolve conflicts before committing.");
     }
 
     Ok(())
@@ -108,6 +121,10 @@ pub fn optional_upstream() -> Option<String> {
     run(&["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"])
         .ok()
         .map(|output| output.trim().to_string())
+}
+
+pub fn has_origin_remote() -> bool {
+    run(&["remote", "get-url", "origin"]).is_ok()
 }
 
 pub fn stage_all() -> anyhow::Result<String> {
