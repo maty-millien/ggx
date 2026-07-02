@@ -1,5 +1,8 @@
 use std::process::{Command, Stdio};
 
+const PR_JSON_FIELDS: &str =
+    "number,title,url,headRefName,baseRefName,mergeStateStatus,reviewDecision,statusCheckRollup";
+
 pub struct Issue {
     pub number: String,
     pub title: String,
@@ -54,28 +57,20 @@ pub fn create_pr(
 }
 
 pub fn pull_request(target: Option<&str>) -> anyhow::Result<PullRequest> {
-    let mut args = vec![
-        "pr",
-        "view",
-        "--json",
-        "number,title,url,headRefName,baseRefName,mergeStateStatus,reviewDecision,statusCheckRollup",
-    ];
-    if let Some(target) = target {
-        args.insert(2, target);
-    }
+    let args = pr_view_args(target);
 
     let output = run(&args)?;
-    let value: serde_json::Value = serde_json::from_str(&output)?;
+    parse_pull_request(&output)
+}
 
-    Ok(PullRequest {
-        number: json_string(&value, "number"),
-        title: json_string(&value, "title"),
-        url: json_string(&value, "url"),
-        head: json_string(&value, "headRefName"),
-        base: json_string(&value, "baseRefName"),
-        merge_state: json_string(&value, "mergeStateStatus"),
-        review_decision: json_string(&value, "reviewDecision"),
-    })
+pub fn open_pull_request(branch: &str) -> anyhow::Result<Option<PullRequest>> {
+    let args = pr_view_args(Some(branch));
+    let output =
+        run_output(&args).map_err(|error| anyhow::anyhow!("failed to run gh: {}", error))?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    optional_pull_request_from_output(&args, output.status.success(), &stdout, &stderr)
 }
 
 pub fn merge(target: Option<&str>, keep_branch: bool, admin: bool) -> anyhow::Result<String> {
@@ -108,11 +103,8 @@ fn merge_with_strategy(
 }
 
 fn run(args: &[&str]) -> anyhow::Result<String> {
-    let output = Command::new("gh")
-        .args(args)
-        .stderr(Stdio::piped())
-        .output()
-        .map_err(|error| anyhow::anyhow!("failed to run gh: {}", error))?;
+    let output =
+        run_output(args).map_err(|error| anyhow::anyhow!("failed to run gh: {}", error))?;
 
     if output.status.success() {
         return Ok(String::from_utf8_lossy(&output.stdout).to_string());
@@ -120,6 +112,57 @@ fn run(args: &[&str]) -> anyhow::Result<String> {
 
     let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
     anyhow::bail!("gh {} failed: {}", args.join(" "), stderr);
+}
+
+fn run_output(args: &[&str]) -> std::io::Result<std::process::Output> {
+    Command::new("gh")
+        .args(args)
+        .stderr(Stdio::piped())
+        .output()
+}
+
+fn pr_view_args(target: Option<&str>) -> Vec<&str> {
+    let mut args = vec!["pr", "view", "--json", PR_JSON_FIELDS];
+    if let Some(target) = target {
+        args.insert(2, target);
+    }
+
+    args
+}
+
+fn optional_pull_request_from_output(
+    args: &[&str],
+    success: bool,
+    stdout: &str,
+    stderr: &str,
+) -> anyhow::Result<Option<PullRequest>> {
+    if success {
+        return parse_pull_request(stdout).map(Some);
+    }
+
+    let stderr = stderr.trim();
+    if stderr
+        .to_ascii_lowercase()
+        .contains("no pull requests found")
+    {
+        return Ok(None);
+    }
+
+    anyhow::bail!("gh {} failed: {}", args.join(" "), stderr);
+}
+
+fn parse_pull_request(output: &str) -> anyhow::Result<PullRequest> {
+    let value: serde_json::Value = serde_json::from_str(output)?;
+
+    Ok(PullRequest {
+        number: json_string(&value, "number"),
+        title: json_string(&value, "title"),
+        url: json_string(&value, "url"),
+        head: json_string(&value, "headRefName"),
+        base: json_string(&value, "baseRefName"),
+        merge_state: json_string(&value, "mergeStateStatus"),
+        review_decision: json_string(&value, "reviewDecision"),
+    })
 }
 
 fn json_string(value: &serde_json::Value, key: &str) -> String {
@@ -135,7 +178,7 @@ fn json_string(value: &serde_json::Value, key: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::json_string;
+    use super::{json_string, optional_pull_request_from_output};
     use serde_json::json;
 
     #[test]
@@ -153,5 +196,60 @@ mod tests {
         assert_eq!(json_string(&value, "missing"), "");
         assert_eq!(json_string(&value, "labels"), "");
         assert_eq!(json_string(&value, "closed"), "");
+    }
+
+    #[test]
+    fn optional_pull_request_reads_existing_pr() {
+        let output = r#"{
+            "number": 42,
+            "title": "Add fast fail",
+            "url": "https://github.com/owner/repo/pull/42",
+            "headRefName": "feature",
+            "baseRefName": "main",
+            "mergeStateStatus": "CLEAN",
+            "reviewDecision": "APPROVED"
+        }"#;
+
+        let pull_request =
+            optional_pull_request_from_output(&["pr", "view", "feature"], true, output, "")
+                .unwrap()
+                .unwrap();
+
+        assert_eq!(pull_request.number, "42");
+        assert_eq!(pull_request.title, "Add fast fail");
+        assert_eq!(pull_request.url, "https://github.com/owner/repo/pull/42");
+        assert_eq!(pull_request.head, "feature");
+        assert_eq!(pull_request.base, "main");
+        assert_eq!(pull_request.merge_state, "CLEAN");
+        assert_eq!(pull_request.review_decision, "APPROVED");
+    }
+
+    #[test]
+    fn optional_pull_request_returns_none_when_no_pr_exists() {
+        let pull_request = optional_pull_request_from_output(
+            &["pr", "view", "feature"],
+            false,
+            "",
+            "no pull requests found for branch \"feature\"",
+        )
+        .unwrap();
+
+        assert!(pull_request.is_none());
+    }
+
+    #[test]
+    fn optional_pull_request_preserves_other_gh_failures() {
+        let result = optional_pull_request_from_output(
+            &["pr", "view", "feature"],
+            false,
+            "",
+            "HTTP 401: Bad credentials",
+        );
+        let Err(error) = result else {
+            panic!("expected gh failure");
+        };
+        let error = error.to_string();
+
+        assert!(error.contains("gh pr view feature failed: HTTP 401: Bad credentials"));
     }
 }

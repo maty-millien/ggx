@@ -31,12 +31,12 @@ ggx is a fast Rust git workflow CLI with AI generated branches, commits, and PR 
 
 ## Command Flags
 
-| Flag            | Purpose                                                                        |
-| --------------- | ------------------------------------------------------------------------------ |
-| `--draft`       | Create a draft PR with `ggx pr`                                                |
-| `--closes`      | Include issue context in a generated PR body with `ggx pr`                     |
-| `--keep-branch` | Do not delete the branch after `ggx merge` or `ggx squash`                     |
-| `--admin`       | Pass admin privileges to `gh pr merge` for `ggx merge` or `ggx squash`         |
+| Flag            | Purpose                                                                |
+| --------------- | ---------------------------------------------------------------------- |
+| `--draft`       | Create a draft PR with `ggx pr`                                        |
+| `--closes`      | Include issue context in a generated PR body with `ggx pr`             |
+| `--keep-branch` | Do not delete the branch after `ggx merge` or `ggx squash`             |
+| `--admin`       | Pass admin privileges to `gh pr merge` for `ggx merge` or `ggx squash` |
 
 ## Common Workflows
 
@@ -82,11 +82,12 @@ Example output: `feat/refresh-auth-session`
 1. Detect current branch.
 2. Detect base branch.
 3. Require a clean worktree and an existing upstream branch.
-4. Generate a GitHub PR title and body from commits, changed files, diff, and optional `--closes` issue context.
-5. Confirm before pushing the branch and creating the PR with `gh`.
-6. Create the PR against the detected default base branch.
-7. Support draft PRs.
-8. Include summary and changes.
+4. Fail fast when an open pull request already exists for the current branch.
+5. Generate a GitHub PR title and body from commits, changed files, diff, and optional `--closes` issue context.
+6. Confirm before pushing the branch and creating the PR with `gh`.
+7. Create the PR against the detected default base branch.
+8. Support draft PRs.
+9. Include summary and changes.
 
 ## Sync Behavior
 

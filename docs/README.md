@@ -47,6 +47,7 @@ ggx merge
 - Reads your current git state and diffs.
 - Asks Codex for concise branch names, commit messages, and PR copy.
 - Shows the generated output before taking action.
+- Fails fast when `ggx pr` finds an open pull request for the current branch.
 - Requires a clean worktree before syncing or merging.
 - Uses GitHub CLI for pull request creation, merge, squash, and branch cleanup.
 

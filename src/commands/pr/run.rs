@@ -9,6 +9,13 @@ pub fn run(draft: bool, closes: Vec<String>) -> anyhow::Result<()> {
     let upstream = git::upstream()?;
     let context = Context::collect(closes)?;
 
+    if let Some(pull_request) = github::open_pull_request(&context.branch)? {
+        anyhow::bail!(
+            "A pull request is already open for this branch: {}",
+            pull_request.url
+        );
+    }
+
     tui::step("Analysis complete", started.elapsed());
     tui::section("Changes");
     tui::change_rows(&changes::from_files_and_numstat(
