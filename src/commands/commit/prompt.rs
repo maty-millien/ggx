@@ -35,6 +35,7 @@ pub fn render(context: &Context) -> String {
 
 Generate a concise git commit message for all staged changes.
 Use Conventional Commits with a non-empty scope in parentheses: feat(scope), fix(scope), refactor(scope), docs(scope), test(scope), chore(scope), build(scope), ci(scope).
+The format must match exactly: type(scope): subject
 Return only the commit message.
 No markdown.
 No explanation.
