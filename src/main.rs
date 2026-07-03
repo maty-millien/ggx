@@ -6,7 +6,7 @@ mod update;
 mod vcs;
 
 use crate::cli::{Cli, Command};
-use crate::commands::{branch, commit, merge, pr, squash, sync};
+use crate::commands::{branch, commit, init, merge, pr, squash, sync};
 use clap::Parser;
 use std::process::ExitCode;
 
@@ -18,6 +18,7 @@ fn main() -> ExitCode {
     let result = match cli.command {
         Command::Branch { prompt } => branch::run(prompt),
         Command::Commit => commit::run(),
+        Command::Init => init::run(),
         Command::Pr { draft, closes } => pr::run(draft, closes),
         Command::Sync => sync::run(),
         Command::Merge {

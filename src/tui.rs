@@ -1,6 +1,6 @@
 use console::{Key, Term, style};
 use indicatif::{ProgressBar, ProgressStyle};
-use std::io::{self, IsTerminal, Read};
+use std::io::{self, IsTerminal, Read, Write};
 use std::time::{Duration, Instant};
 
 pub fn step(label: &str, elapsed: Duration) {
@@ -61,6 +61,59 @@ pub fn confirm(prompt: &str) -> anyhow::Result<bool> {
             Choice::new("Cancel", false),
         ],
     )
+}
+
+const CUSTOM_LABEL: &str = "Other…";
+const CANCEL_LABEL: &str = "Cancel";
+
+#[derive(Clone, Copy)]
+enum CustomChoice {
+    Option(usize),
+    Custom,
+    Cancel,
+}
+
+pub fn input(prompt: &str) -> anyhow::Result<String> {
+    let term = Term::stdout();
+    println!("{} {}", style("+").green(), style(prompt).bold());
+    print!("{} ", rail_text());
+    io::stdout().flush()?;
+
+    let value = read_input_line(&term)?.trim().to_string();
+    rail();
+
+    Ok(value)
+}
+
+pub fn select_with_custom(prompt: &str, options: &[&str]) -> anyhow::Result<Option<String>> {
+    match select(prompt, &custom_choices(options))? {
+        CustomChoice::Option(index) => Ok(Some(options[index].to_string())),
+        CustomChoice::Custom => Ok(Some(input(prompt)?)),
+        CustomChoice::Cancel => Ok(None),
+    }
+}
+
+fn custom_choices<'a>(options: &[&'a str]) -> Vec<Choice<'a, CustomChoice>> {
+    let mut choices = options
+        .iter()
+        .enumerate()
+        .map(|(index, option)| Choice::new(option, CustomChoice::Option(index)))
+        .collect::<Vec<_>>();
+    choices.push(Choice::new(CUSTOM_LABEL, CustomChoice::Custom));
+    choices.push(Choice::new(CANCEL_LABEL, CustomChoice::Cancel));
+
+    choices
+}
+
+fn read_input_line(term: &Term) -> anyhow::Result<String> {
+    if io::stdin().is_terminal() {
+        return Ok(term.read_line()?);
+    }
+
+    let mut line = String::new();
+    io::stdin().read_line(&mut line)?;
+
+    Ok(line)
 }
 
 pub fn select<T: Clone>(prompt: &str, choices: &[Choice<'_, T>]) -> anyhow::Result<T> {
@@ -422,8 +475,8 @@ enum SelectKey {
 #[cfg(test)]
 mod tests {
     use super::{
-        Choice, addition, cancel_choice, commit_message, confirm_label, deletion, digit_key, path,
-        select_line, selected_line, wrap_line,
+        Choice, CustomChoice, addition, cancel_choice, commit_message, confirm_label,
+        custom_choices, deletion, digit_key, path, select_line, selected_line, wrap_line,
     };
 
     fn disable_colors() {
@@ -516,5 +569,20 @@ mod tests {
         assert_eq!(digit_key('1'), super::SelectKey::Index(0));
         assert_eq!(digit_key('3'), super::SelectKey::Index(2));
         assert_eq!(digit_key('x'), super::SelectKey::Ignore);
+    }
+
+    #[test]
+    fn custom_choices_appends_other_and_cancel() {
+        let choices = custom_choices(&["Alpha", "Beta"]);
+
+        assert_eq!(choices.len(), 4);
+        assert_eq!(choices[0].label, "Alpha");
+        assert!(matches!(choices[0].value, CustomChoice::Option(0)));
+        assert_eq!(choices[1].label, "Beta");
+        assert!(matches!(choices[1].value, CustomChoice::Option(1)));
+        assert_eq!(choices[2].label, "Other…");
+        assert!(matches!(choices[2].value, CustomChoice::Custom));
+        assert_eq!(choices[3].label, "Cancel");
+        assert!(matches!(choices[3].value, CustomChoice::Cancel));
     }
 }

@@ -10,6 +10,7 @@ pub enum Command {
         prompt: Option<String>,
     },
     Commit,
+    Init,
     Pr {
         #[arg(long)]
         draft: bool,
@@ -57,6 +58,16 @@ mod tests {
                 assert_eq!(closes, ["#1", "#2"]);
             }
             _ => panic!("expected pr command"),
+        }
+    }
+
+    #[test]
+    fn parses_init_command() {
+        let cli = Cli::parse_from(["ggx", "init"]);
+
+        match cli.command {
+            Command::Init => {}
+            _ => panic!("expected init command"),
         }
     }
 
