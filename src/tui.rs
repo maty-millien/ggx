@@ -86,10 +86,76 @@ pub fn input(prompt: &str) -> anyhow::Result<String> {
 }
 
 pub fn select_with_custom(prompt: &str, options: &[&str]) -> anyhow::Result<Option<String>> {
+    if io::stdin().is_terminal() {
+        return select_with_custom_interactive(prompt, options);
+    }
+
     match select(prompt, &custom_choices(options))? {
         CustomChoice::Option(index) => Ok(Some(options[index].to_string())),
         CustomChoice::Custom => Ok(Some(input(prompt)?)),
         CustomChoice::Cancel => Ok(None),
+    }
+}
+
+fn select_with_custom_interactive(
+    prompt: &str,
+    options: &[&str],
+) -> anyhow::Result<Option<String>> {
+    let term = Term::stdout();
+    let _cursor = CursorGuard::hide(&term)?;
+
+    let custom_index = options.len();
+    let cancel_index = options.len() + 1;
+    let row_count = options.len() + 2;
+
+    let mut selected = 0;
+    let mut custom = String::new();
+    let mut rendered = false;
+
+    loop {
+        if rendered {
+            term.clear_last_lines(row_count + 1)?;
+        }
+
+        render_custom_select(prompt, options, selected, &custom);
+        rendered = true;
+
+        match read_custom_key(selected == custom_index)? {
+            CustomKey::Confirm => {
+                let value = if selected == custom_index {
+                    let value = custom.trim();
+                    if value.is_empty() {
+                        continue;
+                    }
+                    Some(value.to_string())
+                } else if selected == cancel_index {
+                    None
+                } else {
+                    Some(options[selected].to_string())
+                };
+
+                finish_custom_select(&term, prompt, row_count, value.as_deref())?;
+                return Ok(value);
+            }
+            CustomKey::Cancel => {
+                finish_custom_select(&term, prompt, row_count, None)?;
+                return Ok(None);
+            }
+            CustomKey::Next => selected = (selected + 1) % row_count,
+            CustomKey::Previous => {
+                selected = if selected == 0 {
+                    row_count - 1
+                } else {
+                    selected - 1
+                };
+            }
+            CustomKey::Jump(index) if index < row_count => selected = index,
+            CustomKey::Insert(character) => custom.push(character),
+            CustomKey::Backspace => {
+                custom.pop();
+            }
+            CustomKey::Jump(_) | CustomKey::Ignore => {}
+        }
     }
 }
 
@@ -361,8 +427,56 @@ fn finish_select<T>(
     Ok(())
 }
 
+fn render_custom_select(prompt: &str, options: &[&str], selected: usize, custom: &str) {
+    println!("{} {}", style("+").green(), style(prompt).bold());
+
+    for (index, option) in options.iter().enumerate() {
+        println!("{}", select_line(option, index == selected));
+    }
+
+    println!("{}", custom_line(custom, selected == options.len()));
+    println!("{}", select_line(CANCEL_LABEL, selected == options.len() + 1));
+}
+
+fn finish_custom_select(
+    term: &Term,
+    prompt: &str,
+    row_count: usize,
+    value: Option<&str>,
+) -> anyhow::Result<()> {
+    term.clear_last_lines(row_count + 1)?;
+
+    println!("{} {}", style("+").green(), style(prompt).bold());
+    println!("{}", selected_line(value.unwrap_or(CANCEL_LABEL)));
+    rail();
+
+    Ok(())
+}
+
 fn selected_line(label: &str) -> String {
     format!("{} {}", rail_text(), style(label).dim())
+}
+
+fn custom_line(custom: &str, selected: bool) -> String {
+    if !selected {
+        if custom.is_empty() {
+            return format!("  {} {}", style("○").dim(), style(CUSTOM_LABEL).dim());
+        }
+
+        return format!(
+            "  {} {}",
+            style("○").dim(),
+            style(format!("Other: {}", custom)).dim()
+        );
+    }
+
+    format!(
+        "  {} {}{}{}",
+        style("●").green(),
+        style("Other: ").bold(),
+        style(custom).bold(),
+        style("▏").green()
+    )
 }
 
 fn select_line(label: &str, selected: bool) -> String {
@@ -416,6 +530,29 @@ fn digit_key(character: char) -> SelectKey {
         .and_then(|digit| usize::try_from(digit).ok())
         .and_then(|digit| digit.checked_sub(1))
         .map_or(SelectKey::Ignore, SelectKey::Index)
+}
+
+fn read_custom_key(editing: bool) -> anyhow::Result<CustomKey> {
+    Ok(match Term::stdout().read_key()? {
+        Key::Enter => CustomKey::Confirm,
+        Key::Escape | Key::CtrlC => CustomKey::Cancel,
+        Key::ArrowDown => CustomKey::Next,
+        Key::ArrowUp => CustomKey::Previous,
+        Key::Backspace if editing => CustomKey::Backspace,
+        Key::Char(character) if editing => CustomKey::Insert(character),
+        Key::Char('j') | Key::Char('J') => CustomKey::Next,
+        Key::Char('k') | Key::Char('K') => CustomKey::Previous,
+        Key::Char(character) => digit_jump(character),
+        _ => CustomKey::Ignore,
+    })
+}
+
+fn digit_jump(character: char) -> CustomKey {
+    character
+        .to_digit(10)
+        .and_then(|digit| usize::try_from(digit).ok())
+        .and_then(|digit| digit.checked_sub(1))
+        .map_or(CustomKey::Ignore, CustomKey::Jump)
 }
 
 struct CursorGuard<'a> {
@@ -472,11 +609,24 @@ enum SelectKey {
     Ignore,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum CustomKey {
+    Confirm,
+    Cancel,
+    Next,
+    Previous,
+    Jump(usize),
+    Insert(char),
+    Backspace,
+    Ignore,
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
-        Choice, CustomChoice, addition, cancel_choice, commit_message, confirm_label,
-        custom_choices, deletion, digit_key, path, select_line, selected_line, wrap_line,
+        Choice, CustomChoice, CustomKey, addition, cancel_choice, commit_message, confirm_label,
+        custom_choices, custom_line, deletion, digit_jump, digit_key, path, select_line,
+        selected_line, wrap_line,
     };
 
     fn disable_colors() {
@@ -569,6 +719,29 @@ mod tests {
         assert_eq!(digit_key('1'), super::SelectKey::Index(0));
         assert_eq!(digit_key('3'), super::SelectKey::Index(2));
         assert_eq!(digit_key('x'), super::SelectKey::Ignore);
+    }
+
+    #[test]
+    fn custom_line_shows_placeholder_until_selected() {
+        disable_colors();
+
+        assert_eq!(custom_line("", false), "  ○ Other…");
+        assert_eq!(custom_line("", true), "  ● Other: ▏");
+    }
+
+    #[test]
+    fn custom_line_echoes_typed_value_inline() {
+        disable_colors();
+
+        assert_eq!(custom_line("trunk", false), "  ○ Other: trunk");
+        assert_eq!(custom_line("trunk", true), "  ● Other: trunk▏");
+    }
+
+    #[test]
+    fn digit_jump_uses_one_based_indices() {
+        assert_eq!(digit_jump('1'), CustomKey::Jump(0));
+        assert_eq!(digit_jump('4'), CustomKey::Jump(3));
+        assert_eq!(digit_jump('x'), CustomKey::Ignore);
     }
 
     #[test]

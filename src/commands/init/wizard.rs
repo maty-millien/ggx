@@ -1,5 +1,5 @@
-use crate::commands::init::config::Settings;
-use crate::tui::{self, Choice};
+use crate::commands::init::config::{Decision, Settings};
+use crate::tui;
 
 pub fn run(base_branches: &[String]) -> anyhow::Result<Option<Settings>> {
     let Some(commit_convention) = tui::select_with_custom(
@@ -10,7 +10,7 @@ pub fn run(base_branches: &[String]) -> anyhow::Result<Option<Settings>> {
         return Ok(None);
     };
 
-    let Some(squash_on_merge) = choose_bool("Squash pull requests when merging?")? else {
+    let Some(squash_on_merge) = choose_decision("Squash pull requests when merging?")? else {
         return Ok(None);
     };
 
@@ -18,7 +18,7 @@ pub fn run(base_branches: &[String]) -> anyhow::Result<Option<Settings>> {
         return Ok(None);
     };
 
-    let Some(open_as_draft) = choose_bool("Open pull requests as drafts by default?")? else {
+    let Some(open_as_draft) = choose_decision("Open pull requests as drafts by default?")? else {
         return Ok(None);
     };
 
@@ -49,26 +49,6 @@ fn choose_base_branch(branches: &[String]) -> anyhow::Result<Option<String>> {
     tui::select_with_custom("Which branch do pull requests target?", &options)
 }
 
-#[derive(Clone, Copy)]
-enum YesNo {
-    Yes,
-    No,
-    Cancel,
-}
-
-fn choose_bool(prompt: &str) -> anyhow::Result<Option<bool>> {
-    let answer = tui::select(
-        prompt,
-        &[
-            Choice::new("Yes", YesNo::Yes),
-            Choice::new("No", YesNo::No),
-            Choice::new("Cancel", YesNo::Cancel),
-        ],
-    )?;
-
-    Ok(match answer {
-        YesNo::Yes => Some(true),
-        YesNo::No => Some(false),
-        YesNo::Cancel => None,
-    })
+fn choose_decision(prompt: &str) -> anyhow::Result<Option<Decision>> {
+    Ok(tui::select_with_custom(prompt, &["Yes", "No"])?.map(Decision::from_answer))
 }

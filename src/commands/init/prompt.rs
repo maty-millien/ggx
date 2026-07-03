@@ -51,30 +51,26 @@ Return only the Markdown document. No explanation. Do not wrap the whole documen
 - Push policy: {push}{readme_section}{commits_section}"#,
         project_name = project_name,
         convention = settings.commit_convention,
-        squash = yes_no(settings.squash_on_merge),
+        squash = settings.squash_on_merge.label(),
         base = settings.base_branch,
-        draft = yes_no(settings.open_as_draft),
+        draft = settings.open_as_draft.label(),
         push = settings.push_policy,
         readme_section = readme_section,
         commits_section = commits_section,
     )
 }
 
-fn yes_no(value: bool) -> &'static str {
-    if value { "yes" } else { "no" }
-}
-
 #[cfg(test)]
 mod tests {
     use super::render;
-    use crate::commands::init::config::Settings;
+    use crate::commands::init::config::{Decision, Settings};
 
     fn settings() -> Settings {
         Settings {
             commit_convention: "Conventional Commits".to_string(),
-            squash_on_merge: true,
+            squash_on_merge: Decision::Yes,
             base_branch: "develop".to_string(),
-            open_as_draft: false,
+            open_as_draft: Decision::No,
             push_policy: "PR-only".to_string(),
         }
     }
@@ -92,6 +88,15 @@ mod tests {
         assert!(output.contains("## README"));
         assert!(output.contains("# ggx"));
         assert!(output.contains("## Recent commits"));
+    }
+
+    #[test]
+    fn renders_free_form_decision_text() {
+        let mut settings = settings();
+        settings.squash_on_merge = Decision::Custom("squash into dev, then merge dev".to_string());
+        let output = render(&settings, "ggx", None, "");
+
+        assert!(output.contains("Squash pull requests when merging: squash into dev, then merge dev"));
     }
 
     #[test]
