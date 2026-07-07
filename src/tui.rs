@@ -1,7 +1,15 @@
 use console::{Key, Term, style};
 use indicatif::{ProgressBar, ProgressStyle};
 use std::io::{self, IsTerminal, Read};
+#[cfg(unix)]
+use std::os::fd::{AsRawFd, RawFd};
 use std::time::{Duration, Instant};
+
+pub fn session<T>(operation: impl FnOnce() -> T) -> T {
+    let _session = TerminalSession::start();
+
+    operation()
+}
 
 pub fn step(label: &str, elapsed: Duration) {
     println!(
@@ -67,7 +75,7 @@ pub fn select<T: Clone>(prompt: &str, choices: &[Choice<'_, T>]) -> anyhow::Resu
     anyhow::ensure!(!choices.is_empty(), "select requires at least one choice");
 
     let term = Term::stdout();
-    let _cursor = CursorGuard::hide(&term)?;
+    flush_pending_input();
     let mut selected = 0;
     let mut rendered = false;
 
@@ -365,20 +373,94 @@ fn digit_key(character: char) -> SelectKey {
         .map_or(SelectKey::Ignore, SelectKey::Index)
 }
 
-struct CursorGuard<'a> {
-    term: &'a Term,
+struct TerminalSession {
+    term: Option<Term>,
+    #[cfg(unix)]
+    _input: Option<InputModeGuard>,
 }
 
-impl<'a> CursorGuard<'a> {
-    fn hide(term: &'a Term) -> anyhow::Result<Self> {
-        term.hide_cursor()?;
-        Ok(Self { term })
+impl TerminalSession {
+    fn start() -> Self {
+        let term = hide_cursor();
+
+        Self {
+            term,
+            #[cfg(unix)]
+            _input: InputModeGuard::disable_echo(),
+        }
     }
 }
 
-impl Drop for CursorGuard<'_> {
+impl Drop for TerminalSession {
     fn drop(&mut self) {
-        let _ = self.term.show_cursor();
+        if let Some(term) = &self.term {
+            let _ = term.show_cursor();
+        }
+    }
+}
+
+fn hide_cursor() -> Option<Term> {
+    if !io::stdout().is_terminal() {
+        return None;
+    }
+
+    let term = Term::stdout();
+    term.hide_cursor().ok()?;
+    Some(term)
+}
+
+#[cfg(unix)]
+fn flush_pending_input() {
+    let stdin = io::stdin();
+    if stdin.is_terminal() {
+        unsafe {
+            libc::tcflush(stdin.as_raw_fd(), libc::TCIFLUSH);
+        }
+    }
+}
+
+#[cfg(not(unix))]
+fn flush_pending_input() {}
+
+#[cfg(unix)]
+struct InputModeGuard {
+    fd: RawFd,
+    original: libc::termios,
+}
+
+#[cfg(unix)]
+impl InputModeGuard {
+    fn disable_echo() -> Option<Self> {
+        let stdin = io::stdin();
+        if !stdin.is_terminal() {
+            return None;
+        }
+
+        let fd = stdin.as_raw_fd();
+        let mut termios = std::mem::MaybeUninit::uninit();
+        if unsafe { libc::tcgetattr(fd, termios.as_mut_ptr()) } != 0 {
+            return None;
+        }
+
+        let original = unsafe { termios.assume_init() };
+        let mut updated = original;
+        updated.c_lflag &= !(libc::ECHO | libc::ECHONL);
+
+        if unsafe { libc::tcsetattr(fd, libc::TCSADRAIN, &updated) } != 0 {
+            return None;
+        }
+
+        Some(Self { fd, original })
+    }
+}
+
+#[cfg(unix)]
+impl Drop for InputModeGuard {
+    fn drop(&mut self) {
+        unsafe {
+            libc::tcflush(self.fd, libc::TCIFLUSH);
+            libc::tcsetattr(self.fd, libc::TCSADRAIN, &self.original);
+        }
     }
 }
 

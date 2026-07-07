@@ -166,6 +166,7 @@ dependencies = [
  "clap",
  "console",
  "indicatif",
+ "libc",
  "serde_json",
 ]
 

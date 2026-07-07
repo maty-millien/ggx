@@ -26,6 +26,7 @@ ggx is a fast Rust git workflow CLI with AI generated branches, commits, and PR 
 | Merge strategy                     | Normal merge only                |
 | Squash flow                        | Separate `ggx squash` command    |
 | Destructive actions                | Always ask with an action prompt |
+| Terminal input                     | Suppressed except action prompts |
 | Sync cleanup                       | Confirm before deleting          |
 | Protected branch merges            | Use `--admin` when needed        |
 
