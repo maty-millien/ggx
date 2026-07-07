@@ -14,7 +14,7 @@ brew install maty-millien/tap/ggx
 
 - `git`
 - `gh`, authenticated with GitHub
-- `codex`, authenticated for AI generation
+- `copilot`, authenticated for AI generation
 
 ## Commands
 
@@ -45,7 +45,7 @@ ggx merge
 ## What It Does
 
 - Reads your current git state and diffs.
-- Asks Codex for concise branch names, commit messages, and PR copy.
+- Asks GitHub Copilot CLI for concise branch names, commit messages, and PR copy using non-interactive `copilot -p` generation.
 - Commits pending changes during `ggx branch` before pushing the new branch.
 - Shows the generated output and asks with an interactive action prompt before taking action.
 - Fails fast when `ggx pr` finds an open pull request for the current branch.

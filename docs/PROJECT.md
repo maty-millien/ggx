@@ -58,7 +58,7 @@ ggx is a fast Rust git workflow CLI with AI generated branches, commits, and PR 
 
 1. Inspect current changes.
 2. Include an optional user prompt when one is provided.
-3. Generate a short branch name using `codex`.
+3. Generate a short branch name using GitHub Copilot CLI.
 4. Normalize to `type/short-kebab-name` with one of `feat`, `fix`, `refactor`, `docs`, `test`, or `chore`.
 5. Generate a replacement once if the local or remote branch already exists.
 6. When pending changes exist, stage all changes, generate a commit message, and show the changes and message.
