@@ -1,7 +1,10 @@
 #[derive(clap::Parser)]
+#[command(arg_required_else_help = true)]
 pub struct Cli {
+    #[arg(short = 'v', long = "version")]
+    pub version: bool,
     #[command(subcommand)]
-    pub command: Command,
+    pub command: Option<Command>,
 }
 
 #[derive(clap::Subcommand)]
@@ -42,7 +45,7 @@ mod tests {
         let cli = Cli::parse_from(["ggx", "branch", "new thing"]);
 
         match cli.command {
-            Command::Branch { prompt } => assert_eq!(prompt.as_deref(), Some("new thing")),
+            Some(Command::Branch { prompt }) => assert_eq!(prompt.as_deref(), Some("new thing")),
             _ => panic!("expected branch command"),
         }
     }
@@ -52,7 +55,7 @@ mod tests {
         let cli = Cli::parse_from(["ggx", "pr", "--draft", "--closes", "#1", "--closes", "#2"]);
 
         match cli.command {
-            Command::Pr { draft, closes } => {
+            Some(Command::Pr { draft, closes }) => {
                 assert!(draft);
                 assert_eq!(closes, ["#1", "#2"]);
             }
@@ -64,8 +67,9 @@ mod tests {
     fn parses_sync_command() {
         let cli = Cli::parse_from(["ggx", "sync"]);
 
+        assert!(!cli.version);
         match cli.command {
-            Command::Sync => {}
+            Some(Command::Sync) => {}
             _ => panic!("expected sync command"),
         }
     }
@@ -75,11 +79,11 @@ mod tests {
         let cli = Cli::parse_from(["ggx", "merge", "12", "--keep-branch", "--admin"]);
 
         match cli.command {
-            Command::Merge {
+            Some(Command::Merge {
                 target,
                 keep_branch,
                 admin,
-            } => {
+            }) => {
                 assert_eq!(target.as_deref(), Some("12"));
                 assert!(keep_branch);
                 assert!(admin);
@@ -93,11 +97,27 @@ mod tests {
         let cli = Cli::parse_from(["ggx", "squash", "--keep-branch", "--admin"]);
 
         match cli.command {
-            Command::Squash { keep_branch, admin } => {
+            Some(Command::Squash { keep_branch, admin }) => {
                 assert!(keep_branch);
                 assert!(admin);
             }
             _ => panic!("expected squash command"),
         }
+    }
+
+    #[test]
+    fn parses_long_version_flag() {
+        let cli = Cli::parse_from(["ggx", "--version"]);
+
+        assert!(cli.version);
+        assert!(cli.command.is_none());
+    }
+
+    #[test]
+    fn parses_short_version_flag() {
+        let cli = Cli::parse_from(["ggx", "-v"]);
+
+        assert!(cli.version);
+        assert!(cli.command.is_none());
     }
 }

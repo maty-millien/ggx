@@ -12,6 +12,7 @@ ggx is a fast Rust git workflow CLI with AI generated branches, commits, and PR 
 | `ggx sync`   | Sync the default branch and clean safe local branches                       |
 | `ggx merge`  | Merge branch or PR, delete branch by default, checkout default branch, sync |
 | `ggx squash` | Squash merge the current GitHub pull request                                |
+| `ggx -v`     | Print the ggx version                                                       |
 
 ## Key Defaults
 
@@ -32,12 +33,13 @@ ggx is a fast Rust git workflow CLI with AI generated branches, commits, and PR 
 
 ## Command Flags
 
-| Flag            | Purpose                                                                |
-| --------------- | ---------------------------------------------------------------------- |
-| `--draft`       | Create a draft PR with `ggx pr`                                        |
-| `--closes`      | Include issue context in a generated PR body with `ggx pr`             |
-| `--keep-branch` | Do not delete the branch after `ggx merge` or `ggx squash`             |
-| `--admin`       | Pass admin privileges to `gh pr merge` for `ggx merge` or `ggx squash` |
+| Flag              | Purpose                                                                |
+| ----------------- | ---------------------------------------------------------------------- |
+| `--draft`         | Create a draft PR with `ggx pr`                                        |
+| `--closes`        | Include issue context in a generated PR body with `ggx pr`             |
+| `--keep-branch`   | Do not delete the branch after `ggx merge` or `ggx squash`             |
+| `--admin`         | Pass admin privileges to `gh pr merge` for `ggx merge` or `ggx squash` |
+| `--version`, `-v` | Print the ggx version                                                  |
 
 ## Common Workflows
 

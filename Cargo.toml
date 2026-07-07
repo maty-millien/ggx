@@ -1,6 +1,6 @@
 [package]
 name = "ggx"
-version = "0.5.0"
+version = "0.5.1"
 edition = "2024"
 description = "A fast AI-powered git workflow CLI"
 repository = "https://github.com/maty-millien/ggx"

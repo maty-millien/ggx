@@ -28,6 +28,7 @@ ggx merge [target]           # Merge a PR, sync the base branch, and delete the 
 ggx merge --keep-branch      # Merge without deleting the branch
 ggx squash                   # Squash merge the current PR
 ggx squash --keep-branch     # Squash merge without deleting the branch
+ggx --version, ggx -v        # Print the ggx version
 ```
 
 Use `--admin` with `merge` or `squash` when the GitHub operation needs elevated permissions.
