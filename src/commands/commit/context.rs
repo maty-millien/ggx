@@ -21,7 +21,7 @@ pub struct Context {
 }
 
 impl Context {
-    pub fn collect() -> anyhow::Result<Self> {
+    pub(crate) fn collect_for_branch(branch: String) -> anyhow::Result<Self> {
         let files = git::run(&["diff", "--staged", "--name-status"])?
             .trim()
             .to_string();
@@ -56,7 +56,7 @@ impl Context {
         };
 
         Ok(Self {
-            branch: git::current_branch_name()?,
+            branch,
             files,
             stat,
             numstat,

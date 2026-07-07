@@ -71,6 +71,10 @@ impl Context {
             diff_truncated,
         })
     }
+
+    pub fn has_changes(&self) -> bool {
+        self.change_source.is_some()
+    }
 }
 
 fn truncate(value: String, max_chars: usize) -> (String, bool) {

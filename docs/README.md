@@ -19,7 +19,7 @@ brew install maty-millien/tap/ggx
 ## Commands
 
 ```sh
-ggx branch [prompt]          # Generate, create, checkout, and push a branch
+ggx branch [prompt]          # Generate a branch, commit pending changes, and push
 ggx commit                   # Generate a commit message, commit, and push if origin exists
 ggx pr [--draft]             # Generate and open a pull request
 ggx pr --closes 123          # Include issue context in the generated PR
@@ -46,6 +46,7 @@ ggx merge
 
 - Reads your current git state and diffs.
 - Asks Codex for concise branch names, commit messages, and PR copy.
+- Commits pending changes during `ggx branch` before pushing the new branch.
 - Shows the generated output and asks with an interactive action prompt before taking action.
 - Fails fast when `ggx pr` finds an open pull request for the current branch.
 - Requires a clean worktree before syncing or merging.

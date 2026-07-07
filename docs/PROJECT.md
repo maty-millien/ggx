@@ -6,7 +6,7 @@ ggx is a fast Rust git workflow CLI with AI generated branches, commits, and PR 
 
 | Command      | Purpose                                                                     |
 | ------------ | --------------------------------------------------------------------------- |
-| `ggx branch` | Generate and create a branch from current changes                           |
+| `ggx branch` | Generate a branch, commit pending changes, and push                         |
 | `ggx commit` | Stage all changes, generate commit, commit, auto push if origin exists      |
 | `ggx pr`     | Push the current branch and create a GitHub pull request                    |
 | `ggx sync`   | Sync the default branch and clean safe local branches                       |
@@ -61,7 +61,9 @@ ggx is a fast Rust git workflow CLI with AI generated branches, commits, and PR 
 3. Generate a short branch name using `codex`.
 4. Normalize to `type/short-kebab-name` with one of `feat`, `fix`, `refactor`, `docs`, `test`, or `chore`.
 5. Generate a replacement once if the local or remote branch already exists.
-6. Confirm before creating, checking out, and pushing the branch to `origin`.
+6. When pending changes exist, stage all changes, generate a commit message, and show the changes and message.
+7. Confirm before creating, checking out, committing pending changes, and pushing the branch to `origin`.
+8. When no pending changes exist, confirm before creating, checking out, and pushing the branch to `origin`.
 
 Example output: `feat/refresh-auth-session`
 
