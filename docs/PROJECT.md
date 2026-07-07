@@ -7,7 +7,7 @@ ggx is a fast Rust git workflow CLI with AI generated branches, commits, and PR 
 | Command      | Purpose                                                                     |
 | ------------ | --------------------------------------------------------------------------- |
 | `ggx branch` | Generate a branch, commit pending changes, and push                         |
-| `ggx commit` | Stage all changes, generate commit, commit, auto push if origin exists      |
+| `ggx commit` | Preview all changes, confirm, commit, auto push if origin exists            |
 | `ggx pr`     | Push the current branch and create a GitHub pull request                    |
 | `ggx sync`   | Sync the default branch and clean safe local branches                       |
 | `ggx merge`  | Merge branch or PR, delete branch by default, checkout default branch, sync |
@@ -40,19 +40,19 @@ ggx is a fast Rust git workflow CLI with AI generated branches, commits, and PR 
 
 ## Common Workflows
 
-| Workflow                                    | Command                                    |
-| ------------------------------------------- | ------------------------------------------ |
-| Create branch from current changes          | `ggx branch`                               |
-| Create branch from prompt                   | `ggx branch "add stripe webhook handling"` |
-| Stage and commit all changes with auto push | `ggx commit`                               |
-| Create PR                                   | `ggx pr`                                   |
-| Create draft PR                             | `ggx pr --draft`                           |
-| Include issue context in PR text            | `ggx pr --closes 123`                      |
-| Sync base branch and clean locals           | `ggx sync`                                 |
-| Merge PR and clean branch                   | `ggx merge`                                |
-| Merge but keep branch                       | `ggx merge --keep-branch`                  |
-| Squash merge current PR                     | `ggx squash`                               |
-| Squash merge and keep branch                | `ggx squash --keep-branch`                 |
+| Workflow                               | Command                                    |
+| -------------------------------------- | ------------------------------------------ |
+| Create branch from current changes     | `ggx branch`                               |
+| Create branch from prompt              | `ggx branch "add stripe webhook handling"` |
+| Preview, stage, and commit all changes | `ggx commit`                               |
+| Create PR                              | `ggx pr`                                   |
+| Create draft PR                        | `ggx pr --draft`                           |
+| Include issue context in PR text       | `ggx pr --closes 123`                      |
+| Sync base branch and clean locals      | `ggx sync`                                 |
+| Merge PR and clean branch              | `ggx merge`                                |
+| Merge but keep branch                  | `ggx merge --keep-branch`                  |
+| Squash merge current PR                | `ggx squash`                               |
+| Squash merge and keep branch           | `ggx squash --keep-branch`                 |
 
 ## Branch Behavior
 
@@ -61,8 +61,8 @@ ggx is a fast Rust git workflow CLI with AI generated branches, commits, and PR 
 3. Generate a short branch name using GitHub Copilot CLI.
 4. Normalize to `type/short-kebab-name` with one of `feat`, `fix`, `refactor`, `docs`, `test`, or `chore`.
 5. Generate a replacement once if the local or remote branch already exists.
-6. When pending changes exist, stage all changes, generate a commit message, and show the changes and message.
-7. Confirm before creating, checking out, committing pending changes, and pushing the branch to `origin`.
+6. When pending changes exist, preview all changes, generate a commit message, and show the changes and message.
+7. Confirm before creating, checking out, staging, committing pending changes, and pushing the branch to `origin`.
 8. When no pending changes exist, confirm before creating, checking out, and pushing the branch to `origin`.
 
 Example output: `feat/refresh-auth-session`
@@ -70,11 +70,11 @@ Example output: `feat/refresh-auth-session`
 ## Commit Behavior
 
 1. Fail fast if conflicts are unresolved.
-2. Stage all changes, including untracked files.
-3. Generate a commit message from the staged result.
+2. Preview all changes, including untracked files, without changing the real index.
+3. Generate a commit message from that preview.
 4. Show a styled changes summary and generated message.
 5. Let the user choose the commit action or cancel from an action prompt.
-6. Commit.
+6. Stage all changes and commit.
 7. Push automatically if upstream exists.
 8. Set upstream and push if origin exists.
 9. Skip push if origin is missing.

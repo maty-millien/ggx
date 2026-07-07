@@ -46,8 +46,8 @@ ggx merge
 
 - Reads your current git state and diffs.
 - Asks GitHub Copilot CLI for concise branch names, commit messages, and PR copy using non-interactive `copilot -p` generation.
-- Commits pending changes during `ggx branch` before pushing the new branch.
-- Shows the generated output and asks with an interactive action prompt before taking action.
+- Previews pending changes before confirmation, then stages and commits them during `ggx branch`.
+- Shows the generated output and asks with an interactive action prompt before staging, committing, or pushing.
 - Fails fast when `ggx pr` finds an open pull request for the current branch.
 - Requires a clean worktree before syncing or merging.
 - Uses GitHub CLI for pull request creation, merge, squash, and branch cleanup.

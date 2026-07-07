@@ -43,7 +43,6 @@ fn prepare(
     started: Instant,
 ) -> anyhow::Result<PreparedCommit> {
     git::ensure_no_conflicts()?;
-    tui::spinner("Staging changes", git::stage_all)?;
     let context = Context::collect_for_branch(branch)?;
 
     tui::step("Analysis complete", started.elapsed());
@@ -80,6 +79,7 @@ pub(crate) fn action_prompt(commit: &PreparedCommit) -> String {
 }
 
 pub(crate) fn finish(commit: &PreparedCommit) -> anyhow::Result<()> {
+    tui::spinner("Staging changes", git::stage_all)?;
     tui::spinner("Creating commit", || git::commit(&commit.message))?;
     tui::success("Committed to", &commit.context.branch);
 

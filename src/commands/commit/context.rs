@@ -1,6 +1,8 @@
 use crate::vcs::git;
+use std::ffi::OsStr;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 const MAX_DIFF_CHARS: usize = 16_000;
 const MAX_README_CHARS: usize = 8_000;
@@ -22,52 +24,111 @@ pub struct Context {
 
 impl Context {
     pub(crate) fn collect_for_branch(branch: String) -> anyhow::Result<Self> {
-        let files = git::run(&["diff", "--staged", "--name-status"])?
-            .trim()
-            .to_string();
-        let stat = git::run(&["diff", "--staged", "--stat"])?
-            .trim()
-            .to_string();
-        let numstat = git::run(&["diff", "--staged", "--numstat"])?
-            .trim()
-            .to_string();
-        let summary = git::run(&["diff", "--staged", "--summary"])?
-            .trim()
-            .to_string();
-        let diff = git::run(&["diff", "--staged", "--unified=3"])?
+        collect_for_branch_with_env(branch, &[])
+    }
+}
+
+fn collect_for_branch_with_env(branch: String, envs: &[(&str, &OsStr)]) -> anyhow::Result<Context> {
+    let preview = PreviewIndex::from_current(envs)?;
+    preview.run(envs, &["add", "--all"])?;
+
+    let files = preview
+        .run(envs, &["diff", "--staged", "--name-status"])?
+        .trim()
+        .to_string();
+    let stat = preview
+        .run(envs, &["diff", "--staged", "--stat"])?
+        .trim()
+        .to_string();
+    let numstat = preview
+        .run(envs, &["diff", "--staged", "--numstat"])?
+        .trim()
+        .to_string();
+    let summary = preview
+        .run(envs, &["diff", "--staged", "--summary"])?
+        .trim()
+        .to_string();
+    let diff = preview
+        .run(envs, &["diff", "--staged", "--unified=3"])?
+        .trim()
+        .to_string();
+
+    if files.is_empty() {
+        anyhow::bail!("No changes found.");
+    }
+
+    let diff = budget_diff(diff, MAX_DIFF_CHARS);
+    let repo_root = git::run_with_env(&["rev-parse", "--show-toplevel"], envs)?
+        .trim()
+        .to_string();
+    let readme = read_readme(Path::new(&repo_root))?;
+    let (readme, readme_truncated) = match readme {
+        Some(readme) => {
+            let (readme, truncated) = truncate(readme, MAX_README_CHARS);
+            (Some(readme), truncated)
+        }
+        None => (None, false),
+    };
+
+    Ok(Context {
+        branch,
+        files,
+        stat,
+        numstat,
+        summary,
+        readme,
+        diff: diff.value,
+        diff_truncated: diff.total_truncated,
+        diff_file_truncated: diff.file_truncated,
+        readme_truncated,
+    })
+}
+
+struct PreviewIndex {
+    path: PathBuf,
+}
+
+impl PreviewIndex {
+    fn from_current(envs: &[(&str, &OsStr)]) -> anyhow::Result<Self> {
+        let index = Self {
+            path: temporary_index_path(),
+        };
+        let current_index = git::run_with_env(&["rev-parse", "--git-path", "index"], envs)?
             .trim()
             .to_string();
 
-        if files.is_empty() {
-            anyhow::bail!("No changes found.");
+        if Path::new(&current_index).exists() {
+            fs::copy(current_index, &index.path)?;
+        } else {
+            let _ = index.run(envs, &["read-tree", "HEAD"]);
         }
 
-        let diff = budget_diff(diff, MAX_DIFF_CHARS);
-        let repo_root = git::run(&["rev-parse", "--show-toplevel"])?
-            .trim()
-            .to_string();
-        let readme = read_readme(Path::new(&repo_root))?;
-        let (readme, readme_truncated) = match readme {
-            Some(readme) => {
-                let (readme, truncated) = truncate(readme, MAX_README_CHARS);
-                (Some(readme), truncated)
-            }
-            None => (None, false),
-        };
-
-        Ok(Self {
-            branch,
-            files,
-            stat,
-            numstat,
-            summary,
-            readme,
-            diff: diff.value,
-            diff_truncated: diff.total_truncated,
-            diff_file_truncated: diff.file_truncated,
-            readme_truncated,
-        })
+        Ok(index)
     }
+
+    fn run(&self, envs: &[(&str, &OsStr)], args: &[&str]) -> anyhow::Result<String> {
+        let mut envs = envs.to_vec();
+        envs.push(("GIT_INDEX_FILE", self.path.as_os_str()));
+
+        git::run_with_env(args, &envs)
+    }
+}
+
+impl Drop for PreviewIndex {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.path);
+        let lock = PathBuf::from(format!("{}.lock", self.path.display()));
+        let _ = fs::remove_file(lock);
+    }
+}
+
+fn temporary_index_path() -> PathBuf {
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or(0);
+
+    std::env::temp_dir().join(format!("ggx-index-{}-{}", std::process::id(), nanos))
 }
 
 struct BudgetedDiff {
@@ -232,7 +293,12 @@ fn take_chars(value: &str, max_chars: usize) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{budget_diff, truncate};
+    use super::{budget_diff, collect_for_branch_with_env, truncate};
+    use std::ffi::OsStr;
+    use std::fs;
+    use std::path::{Path, PathBuf};
+    use std::process::Command;
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     #[test]
     fn budget_diff_keeps_single_small_diff() {
@@ -311,5 +377,118 @@ mod tests {
 
         assert_eq!(value, "éc");
         assert!(truncated);
+    }
+
+    #[test]
+    fn preview_includes_staged_and_unstaged_changes_without_changing_index() {
+        let repo = TempRepo::new();
+        repo.write("staged.txt", "base\n");
+        repo.write("unstaged.txt", "base\n");
+        repo.git(&["add", "--all"]);
+        repo.git(&["commit", "-m", "initial"]);
+
+        repo.write("staged.txt", "staged\n");
+        repo.git(&["add", "staged.txt"]);
+        repo.write("unstaged.txt", "unstaged\n");
+
+        let before = repo.git(&["diff", "--staged", "--name-status"]);
+        let context = collect_for_branch_with_env("feature".to_string(), &repo.envs()).unwrap();
+        let after = repo.git(&["diff", "--staged", "--name-status"]);
+
+        assert!(context.files.contains("M\tstaged.txt"));
+        assert!(context.files.contains("M\tunstaged.txt"));
+        assert_eq!(after, before);
+    }
+
+    #[test]
+    fn preview_includes_untracked_files_without_changing_index() {
+        let repo = TempRepo::new();
+        repo.write("tracked.txt", "base\n");
+        repo.git(&["add", "--all"]);
+        repo.git(&["commit", "-m", "initial"]);
+        repo.write("untracked.txt", "new\n");
+
+        let context = collect_for_branch_with_env("feature".to_string(), &repo.envs()).unwrap();
+        let staged = repo.git(&["diff", "--staged", "--name-status"]);
+
+        assert!(context.files.contains("A\tuntracked.txt"));
+        assert!(staged.trim().is_empty());
+    }
+
+    struct TempRepo {
+        path: PathBuf,
+        git_dir: PathBuf,
+    }
+
+    impl TempRepo {
+        fn new() -> Self {
+            let path = std::env::temp_dir().join(format!(
+                "ggx-test-{}-{}",
+                std::process::id(),
+                SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .map(|duration| duration.as_nanos())
+                    .unwrap_or(0)
+            ));
+            fs::create_dir(&path).unwrap();
+
+            let repo = Self {
+                git_dir: path.join(".git"),
+                path,
+            };
+            repo.git(&["init"]);
+            repo.git(&["config", "user.email", "test@example.com"]);
+            repo.git(&["config", "user.name", "Test User"]);
+
+            repo
+        }
+
+        fn envs(&self) -> Vec<(&str, &OsStr)> {
+            vec![
+                ("GIT_DIR", self.git_dir.as_os_str()),
+                ("GIT_WORK_TREE", self.path.as_os_str()),
+            ]
+        }
+
+        fn write(&self, relative: &str, contents: &str) {
+            let path = self.path.join(relative);
+            if let Some(parent) = path.parent() {
+                fs::create_dir_all(parent).unwrap();
+            }
+            fs::write(path, contents).unwrap();
+        }
+
+        fn git(&self, args: &[&str]) -> String {
+            let output = Command::new("git")
+                .arg("-C")
+                .arg(&self.path)
+                .args(args)
+                .output()
+                .unwrap();
+
+            if !output.status.success() {
+                panic!(
+                    "git {} failed: {}",
+                    args.join(" "),
+                    String::from_utf8_lossy(&output.stderr)
+                );
+            }
+
+            String::from_utf8_lossy(&output.stdout).to_string()
+        }
+    }
+
+    impl Drop for TempRepo {
+        fn drop(&mut self) {
+            let _ = remove_dir_all(&self.path);
+        }
+    }
+
+    fn remove_dir_all(path: &Path) -> std::io::Result<()> {
+        if path.exists() {
+            fs::remove_dir_all(path)?;
+        }
+
+        Ok(())
     }
 }

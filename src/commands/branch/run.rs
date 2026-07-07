@@ -22,6 +22,7 @@ pub fn run(input_prompt: Option<String>) -> anyhow::Result<()> {
         if tui::confirm(&format!("Create, checkout, commit, and push {}?", branch))? {
             tui::spinner("Creating branch", || git::create_branch(&branch))?;
             tui::success("Checked out", &branch);
+            tui::rail();
             commit::finish(&commit)?;
         } else {
             tui::aborted();
@@ -29,6 +30,7 @@ pub fn run(input_prompt: Option<String>) -> anyhow::Result<()> {
     } else if tui::confirm(&format!("Create, checkout, and push {}?", branch))? {
         tui::spinner("Creating branch", || git::create_branch(&branch))?;
         tui::success("Checked out", &branch);
+        tui::rail();
         tui::spinner("Pushing branch", || git::push_branch(&branch))?;
         tui::success("Pushed to", &format!("origin/{}", branch));
     } else {

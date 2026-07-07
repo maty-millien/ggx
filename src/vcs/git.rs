@@ -1,3 +1,4 @@
+use std::ffi::OsStr;
 use std::process::{Command, Stdio};
 
 pub struct LocalBranch {
@@ -6,10 +7,18 @@ pub struct LocalBranch {
 }
 
 pub fn run(args: &[&str]) -> anyhow::Result<String> {
-    let output = Command::new("git")
-        .args(args)
-        .stderr(Stdio::null())
-        .output()?;
+    run_with_env(args, &[])
+}
+
+pub fn run_with_env(args: &[&str], envs: &[(&str, &OsStr)]) -> anyhow::Result<String> {
+    let mut command = Command::new("git");
+    command.args(args).stderr(Stdio::null());
+
+    for (key, value) in envs {
+        command.env(key, value);
+    }
+
+    let output = command.output()?;
 
     if output.status.success() {
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
