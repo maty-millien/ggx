@@ -61,7 +61,7 @@ ggx is a fast Rust git workflow CLI with AI generated branches, commits, and PR 
 
 1. Inspect current changes.
 2. Include an optional user prompt when one is provided.
-3. Generate a short branch name using GitHub Copilot CLI.
+3. Generate a short branch name using OpenCode CLI with OpenCode Zen model `opencode/north-mini-code-free` and variant `none`.
 4. Normalize to `type/short-kebab-name` with one of `feat`, `fix`, `refactor`, `docs`, `test`, or `chore`.
 5. Generate a replacement once if the local or remote branch already exists.
 6. When pending changes exist, preview all changes, generate a commit message, and show the changes and message.
@@ -133,3 +133,7 @@ Example output: `feat/refresh-auth-session`
 ## One Line Pitch
 
 ggx is a fast AI powered git workflow CLI for branches, commits, PRs, sync, and GitHub PR merge flows.
+
+## AI Provider
+
+ggx uses OpenCode CLI with OpenCode Zen model `opencode/north-mini-code-free` and variant `none` for branch names, commit messages, and PR copy. OpenCode Zen free models are documented as available for a limited time. North Mini Code Free has provider privacy and data-use notes; avoid sending personal or confidential data unless those terms fit your use.

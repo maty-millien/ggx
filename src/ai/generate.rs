@@ -1,4 +1,4 @@
-use super::copilot::CopilotProvider;
+use super::opencode::OpenCodeProvider;
 
 const DIRECT_RESPONSE_INSTRUCTIONS: &str = r#"Do not invoke tools.
 Do not inspect files.
@@ -12,7 +12,7 @@ pub trait AiProvider {
 }
 
 pub fn generate(prompt: &str) -> anyhow::Result<String> {
-    CopilotProvider.generate(prompt)
+    OpenCodeProvider.generate(prompt)
 }
 
 pub(super) fn direct_response_prompt(prompt: &str) -> String {

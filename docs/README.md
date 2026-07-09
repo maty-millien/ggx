@@ -14,7 +14,7 @@ brew install maty-millien/tap/ggx
 
 - `git`
 - `gh`, authenticated with GitHub
-- `copilot`, authenticated for AI generation
+- `opencode`, authenticated with OpenCode Zen for AI generation
 
 ## Commands
 
@@ -46,13 +46,15 @@ ggx merge
 ## What It Does
 
 - Reads your current git state and diffs.
-- Asks GitHub Copilot CLI for concise branch names, commit messages, and PR copy using non-interactive `copilot -p` generation.
+- Asks OpenCode CLI for concise branch names, commit messages, and PR copy using OpenCode Zen model `opencode/north-mini-code-free` with variant `none`.
 - Previews pending changes before confirmation, then stages and commits them during `ggx branch`.
 - Shows the generated output and asks with an interactive action prompt before staging, committing, or pushing.
 - Hides the cursor and suppresses accidental terminal input until an action prompt is shown.
 - Fails fast when `ggx pr` finds an open pull request for the current branch.
 - Requires a clean worktree before syncing or merging.
 - Uses GitHub CLI for pull request creation, merge, squash, and branch cleanup.
+
+OpenCode Zen free models are documented as available for a limited time. North Mini Code Free has provider privacy and data-use notes; avoid sending personal or confidential data unless those terms fit your use.
 
 ## License
 
