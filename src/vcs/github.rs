@@ -73,8 +73,8 @@ pub fn open_pull_request(branch: &str) -> anyhow::Result<Option<PullRequest>> {
     optional_pull_request_from_output(&args, output.status.success(), &stdout, &stderr)
 }
 
-pub fn merge(target: Option<&str>, keep_branch: bool, admin: bool) -> anyhow::Result<String> {
-    merge_with_strategy(target, "--merge", keep_branch, admin)
+pub fn merge(keep_branch: bool, admin: bool) -> anyhow::Result<String> {
+    merge_with_strategy(None, "--merge", keep_branch, admin)
 }
 
 pub fn squash(target: Option<&str>, keep_branch: bool, admin: bool) -> anyhow::Result<String> {

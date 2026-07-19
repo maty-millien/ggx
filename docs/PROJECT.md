@@ -109,7 +109,7 @@ Example output: `feat/refresh-auth-session`
 ## Merge Behavior
 
 1. Require a clean worktree.
-2. Detect the current PR or use the optional target argument.
+2. Detect the current PR.
 3. Show PR number, title, URL, head/base branches, merge state, and review decision when available.
 4. Confirm before running `gh pr merge --merge`.
 5. Delete the branch by default, or preserve it with `--keep-branch`.

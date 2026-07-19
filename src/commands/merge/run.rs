@@ -2,10 +2,10 @@ use crate::tui;
 use crate::vcs::{git, github};
 use std::time::Instant;
 
-pub fn run(target: Option<String>, keep_branch: bool, admin: bool) -> anyhow::Result<()> {
+pub fn run(keep_branch: bool, admin: bool) -> anyhow::Result<()> {
     let started = Instant::now();
     git::ensure_clean_worktree()?;
-    let pull_request = github::pull_request(target.as_deref())?;
+    let pull_request = github::pull_request(None)?;
 
     tui::step("Pull request found", started.elapsed());
     tui::section("Pull Request");
@@ -25,9 +25,7 @@ pub fn run(target: Option<String>, keep_branch: bool, admin: bool) -> anyhow::Re
         return Ok(());
     }
 
-    tui::spinner("Merging pull request", || {
-        github::merge(target.as_deref(), keep_branch, admin)
-    })?;
+    tui::spinner("Merging pull request", || github::merge(keep_branch, admin))?;
     tui::success("Merged PR", &format!("#{}", pull_request.number));
 
     tui::rail();

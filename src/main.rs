@@ -26,11 +26,7 @@ fn main() -> ExitCode {
             Some(Command::Commit) => commit::run(),
             Some(Command::Pr { draft, closes }) => pr::run(draft, closes),
             Some(Command::Sync) => sync::run(),
-            Some(Command::Merge {
-                target,
-                keep_branch,
-                admin,
-            }) => merge::run(target, keep_branch, admin),
+            Some(Command::Merge { keep_branch, admin }) => merge::run(keep_branch, admin),
             Some(Command::Squash { keep_branch, admin }) => squash::run(keep_branch, admin),
             None => unreachable!("clap requires a subcommand unless --version is set"),
         }

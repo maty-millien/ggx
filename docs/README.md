@@ -24,7 +24,7 @@ ggx commit                   # Generate a commit message, commit, and push if or
 ggx pr [--draft]             # Generate and open a pull request
 ggx pr --closes 123          # Include issue context in the generated PR
 ggx sync                     # Sync the default branch and clean safe local branches
-ggx merge [target]           # Merge a PR, sync the base branch, and delete the branch
+ggx merge                    # Merge the current PR, sync the base branch, and delete the branch
 ggx merge --keep-branch      # Merge without deleting the branch
 ggx squash                   # Squash merge the current PR
 ggx squash --keep-branch     # Squash merge without deleting the branch

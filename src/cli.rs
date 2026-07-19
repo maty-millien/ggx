@@ -21,7 +21,6 @@ pub enum Command {
     },
     Sync,
     Merge {
-        target: Option<String>,
         #[arg(long)]
         keep_branch: bool,
         #[arg(long)]
@@ -76,20 +75,20 @@ mod tests {
 
     #[test]
     fn parses_merge_options() {
-        let cli = Cli::parse_from(["ggx", "merge", "12", "--keep-branch", "--admin"]);
+        let cli = Cli::parse_from(["ggx", "merge", "--keep-branch", "--admin"]);
 
         match cli.command {
-            Some(Command::Merge {
-                target,
-                keep_branch,
-                admin,
-            }) => {
-                assert_eq!(target.as_deref(), Some("12"));
+            Some(Command::Merge { keep_branch, admin }) => {
                 assert!(keep_branch);
                 assert!(admin);
             }
             _ => panic!("expected merge command"),
         }
+    }
+
+    #[test]
+    fn rejects_merge_target() {
+        assert!(Cli::try_parse_from(["ggx", "merge", "12"]).is_err());
     }
 
     #[test]
