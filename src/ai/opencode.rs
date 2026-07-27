@@ -1,11 +1,12 @@
 use super::generate::{AiProvider, direct_response_prompt};
 use anyhow::Context;
 use serde_json::Value;
+use std::env;
 use std::io;
 use std::process::{Command, Stdio};
 
 const INSTALL_AUTH_MESSAGE: &str = "Install OpenCode CLI, then authenticate with OpenCode Zen.";
-const MODEL: &str = "opencode/north-mini-code-free";
+const DEFAULT_MODEL: &str = "opencode/north-mini-code-free";
 const VARIANT: &str = "none";
 const AGENT: &str = "title";
 
@@ -13,7 +14,8 @@ pub struct OpenCodeProvider;
 
 impl AiProvider for OpenCodeProvider {
     fn generate(&self, prompt: &str) -> anyhow::Result<String> {
-        let output = opencode_command(prompt).output().map_err(|error| {
+        let model = configured_model();
+        let output = opencode_command(prompt, &model).output().map_err(|error| {
             if error.kind() == io::ErrorKind::NotFound {
                 anyhow::anyhow!("OpenCode CLI not found. {}", INSTALL_AUTH_MESSAGE)
             } else {
@@ -41,7 +43,17 @@ impl AiProvider for OpenCodeProvider {
     }
 }
 
-fn opencode_command(prompt: &str) -> Command {
+fn configured_model() -> String {
+    select_model(env::var("GGX_MODEL").ok())
+}
+
+fn select_model(model: Option<String>) -> String {
+    model
+        .filter(|model| !model.trim().is_empty())
+        .unwrap_or_else(|| DEFAULT_MODEL.to_string())
+}
+
+fn opencode_command(prompt: &str, model: &str) -> Command {
     let mut command = Command::new("opencode");
     command
         .args([
@@ -49,7 +61,7 @@ fn opencode_command(prompt: &str) -> Command {
             "--format",
             "json",
             "--model",
-            MODEL,
+            model,
             "--variant",
             VARIANT,
             "--agent",
@@ -107,13 +119,16 @@ fn parse_text_events(output: &str) -> anyhow::Result<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{AGENT, MODEL, VARIANT, opencode_command, parse_error_events, parse_text_events};
+    use super::{
+        AGENT, DEFAULT_MODEL, VARIANT, opencode_command, parse_error_events, parse_text_events,
+        select_model,
+    };
     use crate::ai::generate::direct_response_prompt;
     use std::ffi::OsStr;
 
     #[test]
     fn builds_non_interactive_opencode_command() {
-        let command = opencode_command("hello");
+        let command = opencode_command("hello", DEFAULT_MODEL);
         let args = command
             .get_args()
             .map(|arg| arg.to_string_lossy().to_string())
@@ -123,7 +138,7 @@ mod tests {
             "--format",
             "json",
             "--model",
-            MODEL,
+            DEFAULT_MODEL,
             "--variant",
             VARIANT,
             "--agent",
@@ -136,6 +151,20 @@ mod tests {
 
         assert_eq!(command.get_program(), OsStr::new("opencode"));
         assert_eq!(args, expected);
+    }
+
+    #[test]
+    fn uses_configured_model() {
+        assert_eq!(
+            select_model(Some("openai/gpt-5.6-sol-fast".to_string())),
+            "openai/gpt-5.6-sol-fast"
+        );
+    }
+
+    #[test]
+    fn falls_back_to_default_model() {
+        assert_eq!(select_model(None), DEFAULT_MODEL);
+        assert_eq!(select_model(Some("  ".to_string())), DEFAULT_MODEL);
     }
 
     #[test]

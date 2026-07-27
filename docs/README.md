@@ -16,6 +16,18 @@ brew install maty-millien/tap/ggx
 - `gh`, authenticated with GitHub
 - `opencode`, authenticated with OpenCode Zen for AI generation
 
+## Model Configuration
+
+ggx uses OpenCode Zen model `opencode/north-mini-code-free` by default. Set
+`GGX_MODEL` to any model available in your OpenCode configuration to override it:
+
+```sh
+GGX_MODEL=openai/gpt-5.6-sol-fast ggx commit
+```
+
+Use `opencode models` to list available model identifiers. An unset or empty
+`GGX_MODEL` falls back to the default model.
+
 ## Commands
 
 ```sh
@@ -46,7 +58,7 @@ ggx merge
 ## What It Does
 
 - Reads your current git state and diffs.
-- Asks OpenCode CLI for concise branch names, commit messages, and PR copy using OpenCode Zen model `opencode/north-mini-code-free` with variant `none`.
+- Asks OpenCode CLI for concise branch names, commit messages, and PR copy using the model selected by `GGX_MODEL`, or OpenCode Zen model `opencode/north-mini-code-free` by default, with variant `none`.
 - Previews pending changes before confirmation, then stages and commits them during `ggx branch`.
 - Shows the generated output and asks with an interactive action prompt before staging, committing, or pushing.
 - Hides the cursor and suppresses accidental terminal input until an action prompt is shown.
