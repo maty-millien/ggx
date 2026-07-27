@@ -31,14 +31,23 @@ pub fn render(context: &Context) -> String {
     };
 
     format!(
-        r#"## Instructions
+        r#"## Output Contract
 
-Generate a concise git commit message for all staged changes.
-Use Conventional Commits with a non-empty scope in parentheses: feat(scope), fix(scope), refactor(scope), docs(scope), test(scope), chore(scope), build(scope), ci(scope).
-The format must match exactly: type(scope): subject
-Return only the commit message.
-No markdown.
-No explanation.
+Return exactly one line matching this structure:
+<type>(<scope>): <subject>
+
+Rules:
+- `<type>` must be one of: feat, fix, refactor, docs, test, chore, build, ci
+- `<scope>` must be present and non-empty
+- Use exactly `): ` between the scope and subject
+- `<subject>` must be concise and non-empty
+- Do not use markdown, quotes, prefixes, explanations, or additional lines
+
+Valid: `feat(cli): add interactive commit confirmation`
+Valid: `docs(readme): clarify installation steps`
+Invalid: `feat: add confirmation` because the scope is missing
+Invalid: `feat(cli):add confirmation` because the space after the colon is missing
+Invalid: `Here is the message: feat(cli): add confirmation` because it contains a prefix
 
 ## Branch
 
@@ -75,7 +84,12 @@ No explanation.
 
 ````diff
 {}
-````{}"#,
+````{}
+
+## Required Output
+
+Based on the repository context above, output only the commit message now.
+Remember: exactly one line in the form `<type>(<scope>): <subject>`."#,
         context.branch,
         context.files,
         context.stat,
@@ -117,6 +131,11 @@ mod tests {
         assert!(output.contains("M  src/main.rs"));
         assert!(output.contains("## README"));
         assert!(output.contains("# ggx"));
+        assert!(output.contains("## Required Output"));
+        assert!(
+            output
+                .ends_with("Remember: exactly one line in the form `<type>(<scope>): <subject>`.")
+        );
         assert!(!output.contains("## Notes"));
     }
 

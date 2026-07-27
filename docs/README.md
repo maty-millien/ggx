@@ -59,6 +59,7 @@ ggx merge
 
 - Reads your current git state and diffs.
 - Asks OpenCode CLI for concise branch names, commit messages, and PR copy using the model selected by `GGX_MODEL`, or OpenCode Zen model `opencode/north-mini-code-free` by default, with variant `none`.
+- Uses a strict commit-message output contract with valid and invalid examples, avoiding a second AI request.
 - Previews pending changes before confirmation, then stages and commits them during `ggx branch`.
 - Shows the generated output and asks with an interactive action prompt before staging, committing, or pushing.
 - Hides the cursor and suppresses accidental terminal input until an action prompt is shown.

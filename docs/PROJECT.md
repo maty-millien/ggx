@@ -74,7 +74,7 @@ Example output: `feat/refresh-auth-session`
 
 1. Fail fast if conflicts are unresolved.
 2. Preview all changes, including untracked files, without changing the real index.
-3. Generate a commit message from that preview.
+3. Generate a commit message from that preview using a strict one-line output contract with valid and invalid examples.
 4. Show a styled changes summary and generated message.
 5. Let the user choose the commit action or cancel from an action prompt.
 6. Stage all changes and commit.

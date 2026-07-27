@@ -100,16 +100,16 @@ pub(crate) fn finish(commit: &PreparedCommit) -> anyhow::Result<()> {
 }
 
 fn generate_valid_message(prompt: &str) -> anyhow::Result<String> {
-    let first = ai::generate(prompt)?;
-    if validation::validate(&first).is_ok() {
-        return Ok(first);
-    }
+    let message = ai::generate(prompt)?;
+    validation::validate(&message).map_err(|error| {
+        anyhow::anyhow!(
+            "AI generated an invalid commit message: {} Response: {:?}",
+            error,
+            message
+        )
+    })?;
 
-    let second = ai::generate(prompt)?;
-    validation::validate(&second)
-        .map_err(|error| anyhow::anyhow!("AI generated an invalid commit message: {}", error))?;
-
-    Ok(second)
+    Ok(message)
 }
 
 #[cfg(test)]
