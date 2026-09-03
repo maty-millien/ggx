@@ -2,7 +2,7 @@ use super::{Provider, run};
 use std::process::Command;
 
 const MODEL: &str = "gpt-5.6-luna";
-const REASONING_EFFORT: &str = "model_reasoning_effort=\"low\"";
+const REASONING_EFFORT: &str = "model_reasoning_effort=\"none\"";
 pub fn generate(prompt: &str) -> anyhow::Result<String> {
     run(Provider::Codex, codex_command(), prompt)
 }
