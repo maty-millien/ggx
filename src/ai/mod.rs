@@ -129,7 +129,8 @@ fn response(
     stdout: &[u8],
     stderr: &[u8],
 ) -> anyhow::Result<String> {
-    let stdout = String::from_utf8_lossy(stdout).trim().to_string();
+    let stdout = String::from_utf8_lossy(stdout);
+    let stdout = strip_markdown_fence(stdout.trim()).to_string();
     let stderr = String::from_utf8_lossy(stderr).trim().to_string();
 
     if !success {
@@ -140,6 +141,19 @@ fn response(
     }
 
     Ok(stdout)
+}
+
+fn strip_markdown_fence(response: &str) -> &str {
+    let Some((opening, rest)) = response.split_once('\n') else {
+        return response;
+    };
+    if opening != "```" && !opening.eq_ignore_ascii_case("```json") {
+        return response;
+    }
+
+    rest.strip_suffix("\n```")
+        .map(str::trim)
+        .unwrap_or(response)
 }
 
 #[cfg(test)]
@@ -166,6 +180,20 @@ mod tests {
         assert_eq!(
             response(Provider::Claude, true, b"  answer\n", b"").unwrap(),
             "answer"
+        );
+    }
+
+    #[test]
+    fn strips_json_markdown_fence_from_response() {
+        assert_eq!(
+            response(
+                Provider::Claude,
+                true,
+                b"```json\n{\"commit\":\"fix(cli): handle error\"}\n```\n",
+                b"",
+            )
+            .unwrap(),
+            r#"{"commit":"fix(cli): handle error"}"#
         );
     }
 

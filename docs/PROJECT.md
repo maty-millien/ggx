@@ -161,4 +161,4 @@ ggx is a fast AI powered git workflow CLI for branches, commits, PRs, sync, and 
 
 Every command except setup and version requires a valid provider configuration. Missing or invalid configuration tells the user to run `ggx setup`.
 
-Codex uses `gpt-5.6-luna` with low reasoning effort. Claude uses the `haiku` alias without an effort flag because Haiku does not support configurable effort. Each command requests all of its generated artifacts together.
+Codex uses `gpt-5.6-luna` with low reasoning effort. Claude uses the `haiku` alias without an effort flag because Haiku does not support configurable effort. Each command requests all of its generated artifacts together. ggx removes one surrounding JSON markdown fence from any provider before parsing and validation.

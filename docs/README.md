@@ -64,6 +64,7 @@ ggx merge
 - Reads your current git state and diffs.
 - Asks the selected AI CLI for concise branch names, commit messages, and PR copy, grouping each command's output into one request.
 - Uses `gpt-5.6-luna` with low reasoning effort for Codex and the `haiku` model for Claude. Haiku does not expose an effort setting.
+- Unwraps a surrounding JSON markdown fence from any AI provider before validation.
 - Previews pending changes before confirmation, then stages and commits them during `ggx branch`.
 - Shows the generated output and asks with an interactive action prompt before staging, committing, or pushing.
 - Hides the cursor and suppresses accidental terminal input until an action prompt is shown.
