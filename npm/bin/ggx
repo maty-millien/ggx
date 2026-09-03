@@ -20,26 +20,6 @@ done
 script_dir=$(CDPATH= cd "$(dirname "$script_path")" && pwd)
 package_dir=$(CDPATH= cd "$script_dir/.." && pwd)
 
-if [ "${CI+x}" != x ]; then
-  (
-    if command -v bun >/dev/null 2>&1; then
-      bun_bin=$(bun pm bin --global 2>/dev/null || :)
-      bun_package_dir=$(CDPATH= cd "$bun_bin/../install/global/node_modules/ggx-ai" 2>/dev/null && pwd || :)
-      if [ "$package_dir" = "$bun_package_dir" ]; then
-        bun update --global --latest ggx-ai
-        exit
-      fi
-    fi
-
-    if command -v npm >/dev/null 2>&1; then
-      npm_root=$(npm root --global 2>/dev/null || :)
-      if [ "$package_dir" = "$npm_root/ggx-ai" ]; then
-        npm update --global ggx-ai
-      fi
-    fi
-  ) </dev/null >/dev/null 2>&1 &
-fi
-
 case "$(uname -s):$(uname -m)" in
   Darwin:arm64) target=aarch64-apple-darwin ;;
   Darwin:x86_64) target=x86_64-apple-darwin ;;

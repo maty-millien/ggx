@@ -33,7 +33,7 @@ ggx is a fast Rust git workflow CLI with AI generated branches, commits, and PR 
 
 ## Distribution
 
-The npm package is named `ggx-ai` and exposes the `ggx` command. It contains native arm64 and x86_64 binaries for macOS and Linux, and works with npm or Bun without a Node runtime dependency. Global installations update silently through the package manager on each launch. Homebrew is not supported.
+The npm package is named `ggx-ai` and exposes the `ggx` command. It contains native arm64 and x86_64 binaries for macOS and Linux, and works with npm or Bun without a Node runtime dependency. Homebrew is not supported.
 
 ## Command Flags
 

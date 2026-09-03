@@ -32,7 +32,7 @@ The package supports Apple Silicon and Intel Macs, plus arm64 and x86_64 Linux. 
 - `git`
 - `gh`, authenticated with GitHub
 - `codex`, authenticated for AI generation
-- npm or Bun for installation and automatic updates
+- npm or Bun for installation
 
 ## Commands
 

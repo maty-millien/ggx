@@ -1,0 +1,92 @@
+name: npm
+
+on:
+  workflow_call:
+    inputs:
+      plan:
+        required: true
+        type: string
+    secrets:
+      NPM_TOKEN:
+        required: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-22.04
+    env:
+      PLAN: ${{ inputs.plan }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          submodules: recursive
+      - name: Fetch release artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: artifacts-*
+          path: ${{ runner.temp }}/artifacts
+          merge-multiple: true
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - name: Build npm package
+        run: |
+          set -eu
+
+          version=$(echo "$PLAN" | jq --raw-output '.releases[0].app_version')
+          project_version=$(awk -F ' *= *' '$1 == "version" { gsub(/"/, "", $2); print $2; exit }' Cargo.toml)
+          output_dir="${{ runner.temp }}/ggx-ai-package"
+
+          if [ "$version" != "$project_version" ]; then
+            echo "Package version $version does not match Cargo.toml version $project_version" >&2
+            exit 1
+          fi
+
+          if [ -e "$output_dir" ]; then
+            echo "Output path already exists: $output_dir" >&2
+            exit 1
+          fi
+
+          mkdir -p "$output_dir/bin" "$output_dir/vendor"
+          cp npm/package.json "$output_dir/package.json"
+          cp npm/bin/ggx "$output_dir/bin/ggx"
+          cp docs/README.md "$output_dir/README.md"
+          cp docs/LICENSE "$output_dir/LICENSE"
+          chmod +x "$output_dir/bin/ggx"
+
+          for target in \
+            aarch64-apple-darwin \
+            aarch64-unknown-linux-gnu \
+            x86_64-apple-darwin \
+            x86_64-unknown-linux-gnu
+          do
+            archive="${{ runner.temp }}/artifacts/ggx-$target.tar.xz"
+            if [ ! -f "$archive" ]; then
+              echo "Missing release archive: $archive" >&2
+              exit 1
+            fi
+
+            target_dir="$output_dir/vendor/$target"
+            mkdir -p "$target_dir"
+            tar -xJf "$archive" -C "$target_dir" --strip-components=1 "ggx-$target/ggx"
+            chmod +x "$target_dir/ggx"
+          done
+
+          (
+            cd "$output_dir"
+            npm version "$version" --allow-same-version --no-git-tag-version --package-lock=false >/dev/null
+          )
+      - id: npm-tag
+        name: Select npm tag
+        run: |
+          if [ "$(echo "$PLAN" | jq --raw-output '.announcement_is_prerelease')" = "true" ]; then
+            echo "value=next" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=latest" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Publish npm package
+        run: npm publish "${{ runner.temp }}/ggx-ai-package" --access public --tag "${{ steps.npm-tag.outputs.value }}"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
