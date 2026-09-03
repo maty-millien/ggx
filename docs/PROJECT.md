@@ -10,6 +10,7 @@ ggx is a fast Rust git workflow CLI with AI generated branches, commits, and PR 
 | `ggx commit` | Preview all changes, confirm, commit, auto push if origin exists            |
 | `ggx pr`     | Prepare pending work, push, and create a GitHub pull request                |
 | `ggx sync`   | Sync the default branch and clean safe local branches                       |
+| `ggx update` | Check for and install the latest stable release                             |
 | `ggx merge`  | Merge branch or PR, delete branch by default, checkout default branch, sync |
 | `ggx squash` | Squash merge the current GitHub pull request                                |
 | `ggx -v`     | Print the ggx version                                                       |
@@ -33,7 +34,9 @@ ggx is a fast Rust git workflow CLI with AI generated branches, commits, and PR 
 
 ## Distribution
 
-The npm package is named `ggx-ai` and exposes the `ggx` command. It contains native arm64 and x86_64 binaries for macOS and Linux, and works with npm or Bun without a Node runtime dependency. Homebrew is not supported.
+Cargo Dist publishes native arm64 and x86_64 binaries for macOS and Linux with a shell installer. Global installations check for stable updates silently once a day, and `ggx update` runs the updater immediately.
+
+A successful CI run on `main` compares the version in `Cargo.toml` with existing release tags. A new version automatically starts the release workflow, which creates the tag, GitHub Release, binaries, installer, and updater.
 
 ## Command Flags
 
@@ -58,6 +61,7 @@ The npm package is named `ggx-ai` and exposes the `ggx` command. It contains nat
 | Include issue context in PR text       | `ggx pr --closes 123`                      |
 | Create a PR targeting `dev`            | `ggx pr --base dev`                        |
 | Sync base branch and clean locals      | `ggx sync`                                 |
+| Install the latest stable release      | `ggx update`                               |
 | Merge PR and clean branch              | `ggx merge`                                |
 | Merge but keep branch                  | `ggx merge --keep-branch`                  |
 | Squash merge current PR                | `ggx squash`                               |
@@ -111,6 +115,13 @@ Example output: `feat/refresh-auth-session`
 7. Exclude the base branch and starting branch from cleanup.
 8. Confirm before deleting cleanup candidates with safe `git branch -d`.
 9. Return to the starting branch when sync began somewhere else.
+
+## Update Behavior
+
+1. Installed copies check for a stable release silently in the background at most once every 24 hours.
+2. Automatic update failures never interrupt the active command.
+3. `ggx update` runs the installed `ggx-update` helper immediately and waits for it to finish.
+4. Manual updates report the installed version or fail with the updater error.
 
 ## Merge Behavior
 

@@ -6,33 +6,19 @@ Fast AI-powered git workflows from the terminal.
 
 ## Install
 
-With npm:
-
 ```sh
-npm install --global ggx-ai
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/maty-millien/ggx/releases/latest/download/ggx-installer.sh | sh
 ```
 
-With Bun:
+The installer supports Apple Silicon and Intel Macs, plus arm64 and x86_64 Linux.
 
-```sh
-bun add --global ggx-ai
-```
-
-Run without a global installation:
-
-```sh
-npx ggx-ai --version
-bunx ggx-ai --version
-```
-
-The package supports Apple Silicon and Intel Macs, plus arm64 and x86_64 Linux. Homebrew is no longer supported.
+`ggx` checks for stable updates silently in the background once a day. Run `ggx update` to check and update immediately.
 
 ## Requirements
 
 - `git`
 - `gh`, authenticated with GitHub
 - `codex`, authenticated for AI generation
-- npm or Bun for installation
 
 ## Commands
 
@@ -43,6 +29,7 @@ ggx pr [--draft]             # Commit pending work, push, and open a pull reques
 ggx pr --base dev            # Create the pull request against dev
 ggx pr --closes 123          # Include issue context in the generated PR
 ggx sync                     # Sync the default branch and clean safe local branches
+ggx update                   # Check for and install a stable update
 ggx merge                    # Merge the current PR, sync the base branch, and delete the branch
 ggx merge --keep-branch      # Merge without deleting the branch
 ggx squash                   # Squash merge the current PR

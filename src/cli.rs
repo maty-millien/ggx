@@ -22,6 +22,7 @@ pub enum Command {
         base: Option<String>,
     },
     Sync,
+    Update,
     Merge {
         #[arg(long)]
         keep_branch: bool,
@@ -89,6 +90,17 @@ mod tests {
         match cli.command {
             Some(Command::Sync) => {}
             _ => panic!("expected sync command"),
+        }
+    }
+
+    #[test]
+    fn parses_update_command() {
+        let cli = Cli::parse_from(["ggx", "update"]);
+
+        assert!(!cli.version);
+        match cli.command {
+            Some(Command::Update) => {}
+            _ => panic!("expected update command"),
         }
     }
 

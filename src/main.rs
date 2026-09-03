@@ -5,7 +5,7 @@ mod tui;
 mod vcs;
 
 use crate::cli::{Cli, Command};
-use crate::commands::{branch, commit, merge, pr, squash, sync};
+use crate::commands::{branch, commit, merge, pr, squash, sync, update};
 use clap::Parser;
 use std::process::ExitCode;
 
@@ -17,6 +17,10 @@ fn main() -> ExitCode {
         return ExitCode::SUCCESS;
     }
 
+    if !matches!(cli.command.as_ref(), Some(Command::Update)) {
+        update::start_automatic();
+    }
+
     let result = tui::session(|| match cli.command {
         Some(Command::Branch { prompt }) => branch::run(prompt),
         Some(Command::Commit) => commit::run(),
@@ -26,6 +30,7 @@ fn main() -> ExitCode {
             base,
         }) => pr::run(draft, closes, base),
         Some(Command::Sync) => sync::run(),
+        Some(Command::Update) => update::run(),
         Some(Command::Merge { keep_branch, admin }) => merge::run(keep_branch, admin),
         Some(Command::Squash { keep_branch, admin }) => squash::run(keep_branch, admin),
         None => unreachable!("clap requires a subcommand unless --version is set"),

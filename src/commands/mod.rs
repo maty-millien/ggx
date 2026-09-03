@@ -5,3 +5,4 @@ pub mod merge;
 pub mod pr;
 pub mod squash;
 pub mod sync;
+pub mod update;
