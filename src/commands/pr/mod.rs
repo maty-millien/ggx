@@ -1,6 +1,5 @@
 mod context;
-mod prompt;
 mod run;
-mod validation;
+pub(crate) mod validation;
 
 pub use run::run;

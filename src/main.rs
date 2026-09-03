@@ -24,7 +24,11 @@ fn main() -> ExitCode {
         match cli.command {
             Some(Command::Branch { prompt }) => branch::run(prompt),
             Some(Command::Commit) => commit::run(),
-            Some(Command::Pr { draft, closes }) => pr::run(draft, closes),
+            Some(Command::Pr {
+                draft,
+                closes,
+                base,
+            }) => pr::run(draft, closes, base),
             Some(Command::Sync) => sync::run(),
             Some(Command::Merge { keep_branch, admin }) => merge::run(keep_branch, admin),
             Some(Command::Squash { keep_branch, admin }) => squash::run(keep_branch, admin),

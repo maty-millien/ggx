@@ -1,7 +1,6 @@
-mod context;
-mod prompt;
+pub(crate) mod context;
 mod run;
-mod validation;
+pub(crate) mod validation;
 
 pub use run::run;
-pub(crate) use run::{finish, prepare_for_new_branch};
+pub(crate) use run::{finish, prepare, show_changes};

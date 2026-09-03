@@ -1,17 +1,49 @@
-use crate::ai;
-use crate::commands::commit::{context::Context, prompt, validation};
+use crate::commands::commit::context::Context;
+use crate::commands::generation::{self, Request};
 use crate::tui;
 use crate::vcs::{changes, git};
 use std::time::Instant;
 
 pub fn run() -> anyhow::Result<()> {
     let started = Instant::now();
+    git::ensure_no_conflicts()?;
+    let context = Context::collect_for_branch(git::current_branch_name()?)?;
+
+    tui::step("Analysis complete", started.elapsed());
+    show_changes(&context);
+
+    let generation_context = generation::Context {
+        current_branch: context.branch.clone(),
+        base: None,
+        user_prompt: None,
+        commits: String::new(),
+        committed_files: String::new(),
+        committed_stat: String::new(),
+        committed_diff: String::new(),
+        pending: Some((&context).into()),
+        issues: Vec::new(),
+    };
+    let (generated, elapsed) = tui::timed_spinner("Generating commit message", || {
+        generation::generate(
+            &generation_context,
+            Request {
+                branch: false,
+                commit: true,
+                pull_request: false,
+            },
+        )
+    })?;
+    let message = generated.commit.expect("generation requires commit");
+
+    tui::step("Message generated", elapsed);
+    tui::message(&message);
+
     let prepared = prepare(
-        git::current_branch_name()?,
+        context,
+        message,
         git::optional_upstream(),
         git::has_origin_remote(),
-        started,
-    )?;
+    );
 
     if tui::confirm(&action_prompt(&prepared))? {
         finish(&prepared)?;
@@ -29,43 +61,26 @@ pub(crate) struct PreparedCommit {
     has_origin_remote: bool,
 }
 
-pub(crate) fn prepare_for_new_branch(
-    branch: &str,
-    started: Instant,
-) -> anyhow::Result<PreparedCommit> {
-    prepare(branch.to_string(), None, git::has_origin_remote(), started)
-}
-
-fn prepare(
-    branch: String,
+pub(crate) fn prepare(
+    context: Context,
+    message: String,
     upstream: Option<String>,
     has_origin_remote: bool,
-    started: Instant,
-) -> anyhow::Result<PreparedCommit> {
-    git::ensure_no_conflicts()?;
-    let context = Context::collect_for_branch(branch)?;
+) -> PreparedCommit {
+    PreparedCommit {
+        context,
+        message,
+        upstream,
+        has_origin_remote,
+    }
+}
 
-    tui::step("Analysis complete", started.elapsed());
+pub(crate) fn show_changes(context: &Context) {
     tui::section("Changes");
     tui::change_rows(&changes::from_files_and_numstat(
         &context.files,
         &context.numstat,
     ));
-
-    let prompt = prompt::render(&context);
-    let (message, elapsed) = tui::timed_spinner("Generating commit message", || {
-        generate_valid_message(&prompt)
-    })?;
-
-    tui::step("Message generated", elapsed);
-    tui::message(&message);
-
-    Ok(PreparedCommit {
-        context,
-        message,
-        upstream,
-        has_origin_remote,
-    })
 }
 
 pub(crate) fn action_prompt(commit: &PreparedCommit) -> String {
@@ -97,19 +112,6 @@ pub(crate) fn finish(commit: &PreparedCommit) -> anyhow::Result<()> {
     }
 
     Ok(())
-}
-
-fn generate_valid_message(prompt: &str) -> anyhow::Result<String> {
-    let first = ai::generate(prompt)?;
-    if validation::validate(&first).is_ok() {
-        return Ok(first);
-    }
-
-    let second = ai::generate(prompt)?;
-    validation::validate(&second)
-        .map_err(|error| anyhow::anyhow!("AI generated an invalid commit message: {}", error))?;
-
-    Ok(second)
 }
 
 #[cfg(test)]

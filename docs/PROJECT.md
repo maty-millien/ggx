@@ -8,7 +8,7 @@ ggx is a fast Rust git workflow CLI with AI generated branches, commits, and PR 
 | ------------ | --------------------------------------------------------------------------- |
 | `ggx branch` | Generate a branch, commit pending changes, and push                         |
 | `ggx commit` | Preview all changes, confirm, commit, auto push if origin exists            |
-| `ggx pr`     | Push the current branch and create a GitHub pull request                    |
+| `ggx pr`     | Prepare pending work, push, and create a GitHub pull request                |
 | `ggx sync`   | Sync the default branch and clean safe local branches                       |
 | `ggx merge`  | Merge branch or PR, delete branch by default, checkout default branch, sync |
 | `ggx squash` | Squash merge the current GitHub pull request                                |
@@ -37,6 +37,7 @@ ggx is a fast Rust git workflow CLI with AI generated branches, commits, and PR 
 | ----------------- | ---------------------------------------------------------------------- |
 | `--draft`         | Create a draft PR with `ggx pr`                                        |
 | `--closes`        | Include issue context in a generated PR body with `ggx pr`             |
+| `--base`          | Target a specific PR base branch instead of the repository default      |
 | `--keep-branch`   | Do not delete the branch after `ggx merge` or `ggx squash`             |
 | `--admin`         | Pass admin privileges to `gh pr merge` for `ggx merge` or `ggx squash` |
 | `--version`, `-v` | Print the ggx version                                                  |
@@ -51,6 +52,7 @@ ggx is a fast Rust git workflow CLI with AI generated branches, commits, and PR 
 | Create PR                              | `ggx pr`                                   |
 | Create draft PR                        | `ggx pr --draft`                           |
 | Include issue context in PR text       | `ggx pr --closes 123`                      |
+| Create a PR targeting `dev`            | `ggx pr --base dev`                        |
 | Sync base branch and clean locals      | `ggx sync`                                 |
 | Merge PR and clean branch              | `ggx merge`                                |
 | Merge but keep branch                  | `ggx merge --keep-branch`                  |
@@ -61,7 +63,7 @@ ggx is a fast Rust git workflow CLI with AI generated branches, commits, and PR 
 
 1. Inspect current changes.
 2. Include an optional user prompt when one is provided.
-3. Generate a short branch name using Codex CLI with model `gpt-5.6-sol` and low reasoning effort.
+3. Generate a short branch name and pending commit message in one Codex CLI request using model `gpt-5.6-luna` and low reasoning effort.
 4. Normalize to `type/short-kebab-name` with one of `feat`, `fix`, `refactor`, `docs`, `test`, or `chore`.
 5. Generate a replacement once if the local or remote branch already exists.
 6. When pending changes exist, preview all changes, generate a commit message, and show the changes and message.
@@ -85,14 +87,14 @@ Example output: `feat/refresh-auth-session`
 ## PR Behavior
 
 1. Detect current branch.
-2. Detect base branch.
-3. Require a clean worktree and an existing upstream branch.
-4. Fail fast when an open pull request already exists for the current branch.
-5. Generate a GitHub PR title and body from commits, changed files, diff, and optional `--closes` issue context.
-6. Confirm before pushing the branch and creating the PR with `gh`.
-7. Create the PR against the detected default base branch.
-8. Support draft PRs.
-9. Include summary and changes.
+2. Use `--base` when provided, otherwise detect the repository default base branch.
+3. When run from the selected base with pending changes, generate a new branch, commit, and PR together.
+4. When run from a feature branch with pending changes, generate the commit and PR together.
+5. When run from a clean feature branch, generate only the PR.
+6. Fail fast when there are no changes or an open pull request already exists for the current feature branch.
+7. Generate every required artifact in one Codex CLI request, with one retry for invalid output or an existing branch name.
+8. Show all generated output and confirm once before creating a branch, committing, pushing, or creating the PR.
+9. Create the PR against the selected base and support draft PRs and `--closes` issue context.
 
 ## Sync Behavior
 
@@ -136,4 +138,4 @@ ggx is a fast AI powered git workflow CLI for branches, commits, PRs, sync, and 
 
 ## AI Provider
 
-ggx uses Codex CLI with model `gpt-5.6-sol` and low reasoning effort for branch names, commit messages, and PR copy.
+ggx uses Codex CLI with model `gpt-5.6-luna` and low reasoning effort for branch names, commit messages, and PR copy. Each command requests all of its generated artifacts together.

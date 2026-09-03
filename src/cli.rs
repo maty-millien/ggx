@@ -18,6 +18,8 @@ pub enum Command {
         draft: bool,
         #[arg(long = "closes")]
         closes: Vec<String>,
+        #[arg(long)]
+        base: Option<String>,
     },
     Sync,
     Merge {
@@ -51,13 +53,30 @@ mod tests {
 
     #[test]
     fn parses_pr_options() {
-        let cli = Cli::parse_from(["ggx", "pr", "--draft", "--closes", "#1", "--closes", "#2"]);
+        let cli = Cli::parse_from([
+            "ggx", "pr", "--draft", "--closes", "#1", "--closes", "#2", "--base", "dev",
+        ]);
 
         match cli.command {
-            Some(Command::Pr { draft, closes }) => {
+            Some(Command::Pr {
+                draft,
+                closes,
+                base,
+            }) => {
                 assert!(draft);
                 assert_eq!(closes, ["#1", "#2"]);
+                assert_eq!(base.as_deref(), Some("dev"));
             }
+            _ => panic!("expected pr command"),
+        }
+    }
+
+    #[test]
+    fn parses_pr_without_base() {
+        let cli = Cli::parse_from(["ggx", "pr"]);
+
+        match cli.command {
+            Some(Command::Pr { base, .. }) => assert!(base.is_none()),
             _ => panic!("expected pr command"),
         }
     }

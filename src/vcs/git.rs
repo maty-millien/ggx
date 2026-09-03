@@ -78,6 +78,10 @@ pub fn ensure_clean_worktree() -> anyhow::Result<()> {
     Ok(())
 }
 
+pub fn has_changes() -> anyhow::Result<bool> {
+    run(&["status", "--porcelain"]).map(|status| !status.trim().is_empty())
+}
+
 pub fn ensure_no_conflicts() -> anyhow::Result<()> {
     let unmerged = run(&["ls-files", "--unmerged"])?;
     if !unmerged.trim().is_empty() {
@@ -119,16 +123,6 @@ pub fn base_ref(base: &str) -> anyhow::Result<String> {
     }
 
     anyhow::bail!("Base branch '{}' was not found locally or on origin.", base);
-}
-
-pub fn upstream() -> anyhow::Result<String> {
-    run(&["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"])
-        .map(|output| output.trim().to_string())
-        .map_err(|_| {
-            anyhow::anyhow!(
-                "Current branch has no upstream. Push it first with git push -u origin HEAD."
-            )
-        })
 }
 
 pub fn optional_upstream() -> Option<String> {

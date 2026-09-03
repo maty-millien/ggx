@@ -1,7 +1,7 @@
 use std::io::Write;
 use std::process::{Command, Stdio};
 
-const MODEL: &str = "gpt-5.6-sol";
+const MODEL: &str = "gpt-5.6-luna";
 const REASONING_EFFORT: &str = "model_reasoning_effort=\"low\"";
 const DIRECT_RESPONSE_INSTRUCTIONS: &str = r#"Do not invoke tools.
 Do not inspect files.
