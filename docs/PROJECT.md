@@ -131,7 +131,7 @@ Example output: `feat/refresh-auth-session`
 
 1. Require a clean worktree.
 2. Detect the current PR.
-3. Show PR number, title, URL, head/base branches, merge state, and review decision when available.
+3. Show a grouped PR summary with its number, title, URL, branch direction, readable merge state, and review decision when available.
 4. Confirm before running `gh pr merge --merge`.
 5. Delete the branch by default, or preserve it with `--keep-branch`.
 6. Pass `--admin` through to `gh pr merge` when requested.
@@ -141,7 +141,7 @@ Example output: `feat/refresh-auth-session`
 
 1. Require a clean worktree.
 2. Detect the current GitHub PR.
-3. Show PR number, title, URL, head/base branches, merge state, and review decision when available.
+3. Show a grouped PR summary with its number, title, URL, branch direction, readable merge state, and review decision when available.
 4. Confirm before running `gh pr merge --squash`.
 5. Delete the branch by default, or preserve it with `--keep-branch`.
 6. Pass `--admin` through to `gh pr merge` when requested.

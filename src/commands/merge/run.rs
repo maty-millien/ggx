@@ -43,19 +43,38 @@ fn value_or_unknown(value: &str) -> &str {
     if value.is_empty() { "unknown" } else { value }
 }
 
+fn readable_status(value: &str) -> String {
+    let value = value_or_unknown(value).replace('_', " ").to_lowercase();
+    let mut characters = value.chars();
+
+    match characters.next() {
+        Some(first) => first.to_uppercase().collect::<String>() + characters.as_str(),
+        None => String::new(),
+    }
+}
+
 fn summary(pull_request: &github::PullRequest) -> String {
     let mut lines = vec![
-        format!("#{} {}", pull_request.number, pull_request.title),
+        format!("#{}  {}", pull_request.number, pull_request.title),
         pull_request.url.clone(),
-        format!("{} -> {}", pull_request.head, pull_request.base),
+        String::new(),
         format!(
-            "Merge state: {}",
-            value_or_unknown(&pull_request.merge_state)
+            "{:<12}{} → {}",
+            "Branch", pull_request.head, pull_request.base
+        ),
+        format!(
+            "{:<12}{}",
+            "Merge state",
+            readable_status(&pull_request.merge_state)
         ),
     ];
 
     if !pull_request.review_decision.is_empty() {
-        lines.push(format!("Review: {}", pull_request.review_decision));
+        lines.push(format!(
+            "{:<12}{}",
+            "Review",
+            readable_status(&pull_request.review_decision)
+        ));
     }
 
     lines.join("\n")
@@ -82,11 +101,14 @@ mod tests {
     fn summary_renders_core_fields() {
         let output = summary(&pull_request());
 
-        assert!(output.contains("#7 Add merge"));
-        assert!(output.contains("https://github.com/owner/repo/pull/7"));
-        assert!(output.contains("feature -> main"));
-        assert!(output.contains("Merge state: CLEAN"));
-        assert!(!output.contains("Review:"));
+        assert_eq!(
+            output,
+            "#7  Add merge\n\
+             https://github.com/owner/repo/pull/7\n\
+             \n\
+             Branch      feature → main\n\
+             Merge state Clean"
+        );
     }
 
     #[test]
@@ -97,7 +119,14 @@ mod tests {
             ..pull_request()
         });
 
-        assert!(output.contains("Merge state: unknown"));
-        assert!(output.contains("Review: APPROVED"));
+        assert_eq!(
+            output,
+            "#7  Add merge\n\
+             https://github.com/owner/repo/pull/7\n\
+             \n\
+             Branch      feature → main\n\
+             Merge state Unknown\n\
+             Review      Approved"
+        );
     }
 }
