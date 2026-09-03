@@ -1,3 +1,4 @@
+use crate::ai::Provider;
 use crate::commands::commit;
 use crate::commands::generation::{self, Request};
 use crate::commands::pr::context::Context;
@@ -5,7 +6,12 @@ use crate::tui;
 use crate::vcs::{changes, git, github};
 use std::time::Instant;
 
-pub fn run(draft: bool, closes: Vec<String>, requested_base: Option<String>) -> anyhow::Result<()> {
+pub fn run(
+    provider: Provider,
+    draft: bool,
+    closes: Vec<String>,
+    requested_base: Option<String>,
+) -> anyhow::Result<()> {
     let started = Instant::now();
     git::ensure_no_conflicts()?;
 
@@ -40,6 +46,7 @@ pub fn run(draft: bool, closes: Vec<String>, requested_base: Option<String>) -> 
     let needs_commit = context.pending.is_some();
     let (generated, elapsed) = tui::timed_spinner("Generating pull request workflow", || {
         generation::generate(
+            provider,
             &generation_context,
             Request {
                 branch: create_branch,

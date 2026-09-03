@@ -1,4 +1,4 @@
-use crate::ai;
+use crate::ai::{self, Provider};
 use crate::commands::{branch, commit, pr};
 use crate::vcs::git;
 use serde_json::Value;
@@ -71,8 +71,13 @@ pub struct Output {
     pub pull_request: Option<pr::validation::PullRequest>,
 }
 
-pub fn generate(context: &Context, request: Request) -> anyhow::Result<Output> {
-    generate_with(context, request, ai::generate, git::branch_exists)
+pub fn generate(provider: Provider, context: &Context, request: Request) -> anyhow::Result<Output> {
+    generate_with(
+        context,
+        request,
+        |prompt| ai::generate(provider, prompt),
+        git::branch_exists,
+    )
 }
 
 fn generate_with<G, B>(

@@ -1,3 +1,4 @@
+use crate::ai::Provider;
 use crate::commands::{
     branch::context::Context,
     commit::{self, context::Context as CommitContext},
@@ -7,7 +8,7 @@ use crate::tui;
 use crate::vcs::git;
 use std::time::Instant;
 
-pub fn run(input_prompt: Option<String>) -> anyhow::Result<()> {
+pub fn run(provider: Provider, input_prompt: Option<String>) -> anyhow::Result<()> {
     let started = Instant::now();
     let context = Context::collect(input_prompt)?;
     git::ensure_no_conflicts()?;
@@ -36,6 +37,7 @@ pub fn run(input_prompt: Option<String>) -> anyhow::Result<()> {
     };
     let (generated, elapsed) = tui::timed_spinner("Generating branch workflow", || {
         generation::generate(
+            provider,
             &generation_context,
             Request {
                 branch: true,

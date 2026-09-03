@@ -1,11 +1,12 @@
 mod ai;
 mod cli;
 mod commands;
+mod config;
 mod tui;
 mod vcs;
 
 use crate::cli::{Cli, Command};
-use crate::commands::{branch, commit, merge, pr, squash, sync, update};
+use crate::commands::{branch, commit, merge, pr, setup, squash, sync, update};
 use clap::Parser;
 use std::process::ExitCode;
 
@@ -17,22 +18,29 @@ fn main() -> ExitCode {
         return ExitCode::SUCCESS;
     }
 
-    if !matches!(cli.command.as_ref(), Some(Command::Update)) {
-        update::start_automatic();
-    }
-
     let result = tui::session(|| match cli.command {
-        Some(Command::Branch { prompt }) => branch::run(prompt),
-        Some(Command::Commit) => commit::run(),
-        Some(Command::Pr {
-            draft,
-            closes,
-            base,
-        }) => pr::run(draft, closes, base),
-        Some(Command::Sync) => sync::run(),
-        Some(Command::Update) => update::run(),
-        Some(Command::Merge { keep_branch, admin }) => merge::run(keep_branch, admin),
-        Some(Command::Squash { keep_branch, admin }) => squash::run(keep_branch, admin),
+        Some(Command::Setup) => setup::run(),
+        Some(command) => {
+            let provider = config::load()?;
+            if !matches!(&command, Command::Update) {
+                update::start_automatic();
+            }
+
+            match command {
+                Command::Setup => unreachable!("setup is handled before configuration loading"),
+                Command::Branch { prompt } => branch::run(provider, prompt),
+                Command::Commit => commit::run(provider),
+                Command::Pr {
+                    draft,
+                    closes,
+                    base,
+                } => pr::run(provider, draft, closes, base),
+                Command::Sync => sync::run(),
+                Command::Update => update::run(),
+                Command::Merge { keep_branch, admin } => merge::run(keep_branch, admin),
+                Command::Squash { keep_branch, admin } => squash::run(keep_branch, admin),
+            }
+        }
         None => unreachable!("clap requires a subcommand unless --version is set"),
     });
 

@@ -18,11 +18,20 @@ The installer supports Apple Silicon and Intel Macs, plus arm64 and x86_64 Linux
 
 - `git`
 - `gh`, authenticated with GitHub
-- `codex`, authenticated for AI generation
+- Either `codex` or `claude`, authenticated for AI generation
+
+Run setup once after installing ggx, then choose the installed AI provider:
+
+```sh
+ggx setup
+```
+
+The selection applies to every repository. Run `ggx setup` again to switch providers. Other ggx commands fail with an instruction to run setup until a provider has been saved.
 
 ## Commands
 
 ```sh
+ggx setup                    # Choose Codex or Claude
 ggx branch [prompt]          # Generate a branch, commit pending changes, and push
 ggx commit                   # Generate a commit message, commit, and push if origin exists
 ggx pr [--draft]             # Commit pending work, push, and open a pull request
@@ -42,6 +51,7 @@ Use `--admin` with `merge` or `squash` when the GitHub operation needs elevated 
 ## Workflow
 
 ```sh
+ggx setup
 ggx branch "add billing webhook retries"
 ggx commit
 ggx pr --base dev --draft
@@ -52,7 +62,8 @@ ggx merge
 ## What It Does
 
 - Reads your current git state and diffs.
-- Asks Codex CLI for concise branch names, commit messages, and PR copy using `gpt-5.6-luna` with low reasoning effort, grouping each command's output into one request.
+- Asks the selected AI CLI for concise branch names, commit messages, and PR copy, grouping each command's output into one request.
+- Uses `gpt-5.6-luna` with low reasoning effort for Codex and the `haiku` model for Claude. Haiku does not expose an effort setting.
 - Previews pending changes before confirmation, then stages and commits them during `ggx branch`.
 - Shows the generated output and asks with an interactive action prompt before staging, committing, or pushing.
 - Hides the cursor and suppresses accidental terminal input until an action prompt is shown.

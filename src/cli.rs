@@ -9,6 +9,7 @@ pub struct Cli {
 
 #[derive(clap::Subcommand)]
 pub enum Command {
+    Setup,
     Branch {
         prompt: Option<String>,
     },
@@ -49,6 +50,17 @@ mod tests {
         match cli.command {
             Some(Command::Branch { prompt }) => assert_eq!(prompt.as_deref(), Some("new thing")),
             _ => panic!("expected branch command"),
+        }
+    }
+
+    #[test]
+    fn parses_setup_command() {
+        let cli = Cli::parse_from(["ggx", "setup"]);
+
+        assert!(!cli.version);
+        match cli.command {
+            Some(Command::Setup) => {}
+            _ => panic!("expected setup command"),
         }
     }
 

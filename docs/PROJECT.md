@@ -6,6 +6,7 @@ ggx is a fast Rust git workflow CLI with AI generated branches, commits, and PR 
 
 | Command      | Purpose                                                                     |
 | ------------ | --------------------------------------------------------------------------- |
+| `ggx setup`  | Choose and save the AI provider                                             |
 | `ggx branch` | Generate a branch, commit pending changes, and push                         |
 | `ggx commit` | Preview all changes, confirm, commit, auto push if origin exists            |
 | `ggx pr`     | Prepare pending work, push, and create a GitHub pull request                |
@@ -31,6 +32,8 @@ ggx is a fast Rust git workflow CLI with AI generated branches, commits, and PR 
 | Terminal input                     | Suppressed except action prompts |
 | Sync cleanup                       | Confirm before deleting          |
 | Protected branch merges            | Use `--admin` when needed        |
+| AI provider scope                   | One selection per user           |
+| Commands before provider setup      | Fail with setup instructions     |
 
 ## Distribution
 
@@ -53,6 +56,7 @@ A successful CI run on `main` compares the version in `Cargo.toml` with existing
 
 | Workflow                               | Command                                    |
 | -------------------------------------- | ------------------------------------------ |
+| Choose or change the AI provider       | `ggx setup`                                |
 | Create branch from current changes     | `ggx branch`                               |
 | Create branch from prompt              | `ggx branch "add stripe webhook handling"` |
 | Preview, stage, and commit all changes | `ggx commit`                               |
@@ -71,7 +75,7 @@ A successful CI run on `main` compares the version in `Cargo.toml` with existing
 
 1. Inspect current changes.
 2. Include an optional user prompt when one is provided.
-3. Generate a short branch name and pending commit message in one Codex CLI request using model `gpt-5.6-luna` and low reasoning effort.
+3. Generate a short branch name and pending commit message in one request to the configured AI provider.
 4. Normalize to `type/short-kebab-name` with one of `feat`, `fix`, `refactor`, `docs`, `test`, or `chore`.
 5. Generate a replacement once if the local or remote branch already exists.
 6. When pending changes exist, preview all changes, generate a commit message, and show the changes and message.
@@ -153,4 +157,8 @@ ggx is a fast AI powered git workflow CLI for branches, commits, PRs, sync, and 
 
 ## AI Provider
 
-ggx uses Codex CLI with model `gpt-5.6-luna` and low reasoning effort for branch names, commit messages, and PR copy. Each command requests all of its generated artifacts together.
+`ggx setup` requires an interactive terminal and lets the user choose Codex or Claude. It checks that the selected CLI is installed before saving the choice in `$XDG_CONFIG_HOME/ggx/config.json`, or `$HOME/.config/ggx/config.json` when `XDG_CONFIG_HOME` is unset. Running setup again changes the provider for every repository.
+
+Every command except setup and version requires a valid provider configuration. Missing or invalid configuration tells the user to run `ggx setup`.
+
+Codex uses `gpt-5.6-luna` with low reasoning effort. Claude uses the `haiku` alias without an effort flag because Haiku does not support configurable effort. Each command requests all of its generated artifacts together.

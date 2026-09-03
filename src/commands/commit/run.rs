@@ -1,10 +1,11 @@
+use crate::ai::Provider;
 use crate::commands::commit::context::Context;
 use crate::commands::generation::{self, Request};
 use crate::tui;
 use crate::vcs::{changes, git};
 use std::time::Instant;
 
-pub fn run() -> anyhow::Result<()> {
+pub fn run(provider: Provider) -> anyhow::Result<()> {
     let started = Instant::now();
     git::ensure_no_conflicts()?;
     let context = Context::collect_for_branch(git::current_branch_name()?)?;
@@ -25,6 +26,7 @@ pub fn run() -> anyhow::Result<()> {
     };
     let (generated, elapsed) = tui::timed_spinner("Generating commit message", || {
         generation::generate(
+            provider,
             &generation_context,
             Request {
                 branch: false,

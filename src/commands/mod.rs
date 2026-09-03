@@ -3,6 +3,7 @@ pub mod commit;
 mod generation;
 pub mod merge;
 pub mod pr;
+pub mod setup;
 pub mod squash;
 pub mod sync;
 pub mod update;
