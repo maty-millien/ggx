@@ -125,6 +125,7 @@ wait_for_update() {
 }
 
 npm_log="$test_dir/npm-update.log"
+env -u CI \
 GGX_TEST_OS=Linux \
 GGX_TEST_ARCH=x86_64 \
 GGX_TEST_NPM_PREFIX="$npm_prefix" \
@@ -136,6 +137,7 @@ wait_for_update "$npm_log"
 grep -qx "npm update --global ggx-ai" "$npm_log"
 
 bun_log="$test_dir/bun-update.log"
+env -u CI \
 GGX_TEST_OS=Linux \
 GGX_TEST_ARCH=x86_64 \
 GGX_TEST_NPM_PREFIX="$npm_prefix/other-prefix" \
@@ -148,6 +150,7 @@ wait_for_update "$bun_log"
 grep -qx "bun update --global --latest ggx-ai" "$bun_log"
 
 local_log="$test_dir/local-update.log"
+env -u CI \
 GGX_TEST_OS=Linux \
 GGX_TEST_ARCH=x86_64 \
 GGX_TEST_NPM_PREFIX="$npm_prefix" \
@@ -162,6 +165,7 @@ if [ -e "$local_log" ]; then
 fi
 
 npx_log="$test_dir/npx-update.log"
+env -u CI \
 GGX_TEST_OS=Linux \
 GGX_TEST_ARCH=x86_64 \
 GGX_TEST_NPM_PREFIX="$npm_prefix" \
@@ -176,6 +180,7 @@ if [ -e "$npx_log" ]; then
 fi
 
 bunx_log="$test_dir/bunx-update.log"
+env -u CI \
 BUN_INSTALL="$test_dir/bunx-home" \
 GGX_TEST_OS=Linux \
 GGX_TEST_ARCH=x86_64 \
