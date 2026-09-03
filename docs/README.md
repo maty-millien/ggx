@@ -7,7 +7,7 @@ Fast AI-powered git workflows from the terminal.
 ## Install
 
 ```sh
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/maty-millien/ggx/releases/latest/download/ggx-installer.sh | sh
+curl -fsSL https://github.com/maty-millien/ggx/releases/latest/download/ggx-installer.sh | sh
 ```
 
 The installer supports Apple Silicon and Intel Macs, plus arm64 and x86_64 Linux.
