@@ -44,7 +44,7 @@ do
 
   target_dir="$output_dir/vendor/$target"
   mkdir -p "$target_dir"
-  tar -xJf "$archive" -C "$target_dir" --strip-components=1 "$target/ggx"
+  tar -xJf "$archive" -C "$target_dir" --strip-components=1 "ggx-$target/ggx"
   chmod +x "$target_dir/ggx"
 done
 
