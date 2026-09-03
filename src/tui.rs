@@ -40,13 +40,19 @@ pub fn change_rows(rows: &[ChangeRow]) {
 }
 
 pub fn message(text: &str) {
-    println!("{} {}", rail_text(), commit_message(text));
+    for (index, line) in wrap_line(text, block_width()).into_iter().enumerate() {
+        let styled = if index == 0 {
+            commit_message(&line)
+        } else {
+            style(line).white().to_string()
+        };
+        println!("{} {}", rail_text(), styled);
+    }
     rail();
 }
 
 pub fn block(text: &str) {
-    let width = Term::stdout().size().1 as usize;
-    let width = width.saturating_sub(4).max(20);
+    let width = block_width();
 
     for line in text.lines() {
         if line.is_empty() {
@@ -77,15 +83,11 @@ pub fn select<T: Clone>(prompt: &str, choices: &[Choice<'_, T>]) -> anyhow::Resu
     let term = Term::stdout();
     flush_pending_input();
     let mut selected = 0;
-    let mut rendered = false;
+    let mut rendered = 0;
 
     loop {
-        if rendered && io::stdin().is_terminal() {
-            term.clear_last_lines(choices.len() + 1)?;
-        }
-
-        render_select(prompt, choices, selected);
-        rendered = true;
+        clear_rendered(&term, rendered)?;
+        rendered = render_select(prompt, choices, selected);
 
         match read_select_key()? {
             SelectKey::Confirm => {
@@ -166,6 +168,11 @@ pub fn error(error: &anyhow::Error) {
 
 pub fn rail() {
     println!("{}", rail_text());
+}
+
+fn block_width() -> usize {
+    let width = Term::stdout().size().1 as usize;
+    width.saturating_sub(4).max(20)
 }
 
 fn rail_text() -> console::StyledObject<&'static str> {
@@ -290,12 +297,34 @@ fn split_word(word: &str, width: usize) -> Vec<String> {
     parts
 }
 
-fn render_select<T>(prompt: &str, choices: &[Choice<'_, T>], selected: usize) {
-    println!("{} {}", style("+").green(), style(prompt).bold());
+fn render_select<T>(prompt: &str, choices: &[Choice<'_, T>], selected: usize) -> usize {
+    let columns = Term::stdout().size().1 as usize;
+    let mut lines = vec![format!("{} {}", style("+").green(), style(prompt).bold())];
+    lines.extend(
+        choices
+            .iter()
+            .enumerate()
+            .map(|(index, choice)| select_line(choice.label, index == selected)),
+    );
 
-    for (index, choice) in choices.iter().enumerate() {
-        println!("{}", select_line(choice.label, index == selected));
+    for line in &lines {
+        println!("{}", line);
     }
+
+    lines.iter().map(|line| visual_rows(line, columns)).sum()
+}
+
+fn visual_rows(line: &str, columns: usize) -> usize {
+    let width = console::measure_text_width(line);
+    width.div_ceil(columns.max(1)).max(1)
+}
+
+fn clear_rendered(term: &Term, rows: usize) -> anyhow::Result<()> {
+    if rows > 0 && io::stdin().is_terminal() {
+        term.clear_last_lines(rows)?;
+    }
+
+    Ok(())
 }
 
 fn finish_select<T>(
@@ -303,11 +332,9 @@ fn finish_select<T>(
     prompt: &str,
     choices: &[Choice<'_, T>],
     selected: usize,
-    rendered: bool,
+    rendered: usize,
 ) -> anyhow::Result<()> {
-    if rendered && io::stdin().is_terminal() {
-        term.clear_last_lines(choices.len() + 1)?;
-    }
+    clear_rendered(term, rendered)?;
 
     println!("{} {}", style("+").green(), style(prompt).bold());
     println!("{}", selected_line(choices[selected].label));
@@ -505,7 +532,7 @@ enum SelectKey {
 mod tests {
     use super::{
         Choice, addition, cancel_choice, commit_message, confirm_label, deletion, digit_key, path,
-        select_line, selected_line, wrap_line,
+        select_line, selected_line, visual_rows, wrap_line,
     };
 
     fn disable_colors() {
@@ -563,6 +590,14 @@ mod tests {
             wrap_line("  one two three", 7),
             vec!["  one", "  two", "  three"]
         );
+    }
+
+    #[test]
+    fn visual_rows_counts_wrapped_terminal_rows() {
+        assert_eq!(visual_rows("", 10), 1);
+        assert_eq!(visual_rows("abcdefghij", 10), 1);
+        assert_eq!(visual_rows("abcdefghijk", 10), 2);
+        assert_eq!(visual_rows("\x1b[1mabc\x1b[0m", 3), 1);
     }
 
     #[test]

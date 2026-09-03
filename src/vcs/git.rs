@@ -178,7 +178,7 @@ pub fn local_branches() -> anyhow::Result<Vec<LocalBranch>> {
 }
 
 pub fn delete_branch(name: &str) -> anyhow::Result<()> {
-    run(&["branch", "-d", name])?;
+    run(&["branch", "-D", name])?;
 
     Ok(())
 }
