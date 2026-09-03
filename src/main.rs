@@ -2,7 +2,6 @@ mod ai;
 mod cli;
 mod commands;
 mod tui;
-mod update;
 mod vcs;
 
 use crate::cli::{Cli, Command};
@@ -18,22 +17,18 @@ fn main() -> ExitCode {
         return ExitCode::SUCCESS;
     }
 
-    let result = tui::session(|| {
-        update::brew();
-
-        match cli.command {
-            Some(Command::Branch { prompt }) => branch::run(prompt),
-            Some(Command::Commit) => commit::run(),
-            Some(Command::Pr {
-                draft,
-                closes,
-                base,
-            }) => pr::run(draft, closes, base),
-            Some(Command::Sync) => sync::run(),
-            Some(Command::Merge { keep_branch, admin }) => merge::run(keep_branch, admin),
-            Some(Command::Squash { keep_branch, admin }) => squash::run(keep_branch, admin),
-            None => unreachable!("clap requires a subcommand unless --version is set"),
-        }
+    let result = tui::session(|| match cli.command {
+        Some(Command::Branch { prompt }) => branch::run(prompt),
+        Some(Command::Commit) => commit::run(),
+        Some(Command::Pr {
+            draft,
+            closes,
+            base,
+        }) => pr::run(draft, closes, base),
+        Some(Command::Sync) => sync::run(),
+        Some(Command::Merge { keep_branch, admin }) => merge::run(keep_branch, admin),
+        Some(Command::Squash { keep_branch, admin }) => squash::run(keep_branch, admin),
+        None => unreachable!("clap requires a subcommand unless --version is set"),
     });
 
     if let Err(error) = result {

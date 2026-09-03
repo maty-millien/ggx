@@ -6,15 +6,33 @@ Fast AI-powered git workflows from the terminal.
 
 ## Install
 
+With npm:
+
 ```sh
-brew install maty-millien/tap/ggx
+npm install --global ggx-ai
 ```
+
+With Bun:
+
+```sh
+bun add --global ggx-ai
+```
+
+Run without a global installation:
+
+```sh
+npx ggx-ai --version
+bunx ggx-ai --version
+```
+
+The package supports Apple Silicon and Intel Macs, plus arm64 and x86_64 Linux. Homebrew is no longer supported.
 
 ## Requirements
 
 - `git`
 - `gh`, authenticated with GitHub
 - `codex`, authenticated for AI generation
+- npm or Bun for installation and automatic updates
 
 ## Commands
 
