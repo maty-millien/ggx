@@ -1,78 +1,103 @@
+<div align="center">
+
 # ggx
 
-Fast AI-powered git workflows from the terminal.
+### Ship git work without writing the branch, commit, or PR copy yourself.
 
-`ggx` helps you turn local changes into named branches, commits, pull requests, and cleanly merged work with a small set of focused commands.
+`branch` · `commit` · `pull request` · `merge`
+
+</div>
 
 ## Install
 
 ```sh
 curl -fsSL https://github.com/maty-millien/ggx/releases/latest/download/ggx-installer.sh | sh
-```
-
-The installer supports Apple Silicon and Intel Macs, plus arm64 and x86_64 Linux.
-
-`ggx` checks for stable updates silently in the background once a day. Run `ggx update` to check and update immediately.
-
-## Requirements
-
-- `git`
-- `gh`, authenticated with GitHub
-- Either `codex` or `claude`, authenticated for AI generation
-
-Run setup once after installing ggx, then choose the installed AI provider:
-
-```sh
 ggx setup
 ```
 
-The selection applies to every repository. Run `ggx setup` again to switch providers. Other ggx commands fail with an instruction to run setup until a provider has been saved.
+Works on macOS and Linux. You'll need `git`, GitHub CLI (`gh`), and either Codex or Claude.
 
-## Commands
+<details>
+<summary>Setup and updates</summary>
+
+Authenticate `gh` and your chosen AI CLI before running `ggx setup`. Your provider choice applies to every repository. Run setup again at any time to switch.
+
+`ggx` checks for stable updates once a day in the background. To update now, run:
 
 ```sh
-ggx setup                    # Choose Codex or Claude
-ggx branch [prompt]          # Generate a branch, commit pending changes, and push
-ggx commit                   # Generate a commit message, commit, and push if origin exists
-ggx pr [--draft]             # Commit pending work, push, and open a pull request
-ggx pr --base dev            # Create the pull request against dev
-ggx pr --closes 123          # Include issue context in the generated PR
-ggx sync                     # Sync the default branch and clean safe local branches
-ggx update                   # Check for and install a stable update
-ggx merge                    # Merge the current PR, sync the base branch, and delete the branch
-ggx merge --keep-branch      # Merge without deleting the branch
-ggx squash                   # Squash merge the current PR
-ggx squash --keep-branch     # Squash merge without deleting the branch
-ggx --version, ggx -v        # Print the ggx version
+ggx update
 ```
 
-Use `--admin` with `merge` or `squash` when the GitHub operation needs elevated permissions.
+</details>
 
-## Workflow
+## The workflow
+
+```text
+  local changes
+       │
+       ▼
+  ggx branch ─── name branch, commit, push
+       │
+       ▼
+  ggx commit ─── commit more work, push
+       │
+       ▼
+  ggx pr ─────── open a pull request
+       │
+       ▼
+  ggx merge ──── merge, sync, clean up
+```
 
 ```sh
-ggx setup
 ggx branch "add billing webhook retries"
 ggx commit
 ggx pr --base dev --draft
-ggx sync
 ggx merge
 ```
 
-## What It Does
+Run `ggx sync` whenever you want to update the default branch and clean safe local branches.
 
-- Reads your current git state and diffs.
-- Asks the selected AI CLI for concise branch names, commit messages, and PR copy, grouping each command's output into one request.
-- Uses `gpt-5.6-luna` with low reasoning effort for Codex and the `haiku` model for Claude. Haiku does not expose an effort setting.
-- Unwraps a surrounding JSON markdown fence from any AI provider before validation.
-- Previews pending changes before confirmation, then stages and commits them during `ggx branch`.
-- Shows the generated output and asks with an interactive action prompt before staging, committing, or pushing.
-- Hides the cursor and suppresses accidental terminal input until an action prompt is shown.
-- Turns pending work on the selected base branch into a new branch, commit, push, and pull request with one confirmation.
-- Commits pending changes on an existing feature branch before creating its pull request.
-- Fails fast when `ggx pr` finds an open pull request for the current branch.
-- Requires a clean worktree before syncing or merging.
-- Uses GitHub CLI for pull request creation, merge, squash, and branch cleanup.
+## Command guide
+
+| I want to… | Run |
+|---|---|
+| Choose Codex or Claude | `ggx setup` |
+| Start work from pending changes | `ggx branch [prompt]` |
+| Commit and push current changes | `ggx commit` |
+| Open a pull request | `ggx pr [--draft]` |
+| Sync and clean local branches | `ggx sync` |
+| Merge the current pull request | `ggx merge` |
+| Squash-merge the current pull request | `ggx squash` |
+| Install the latest stable release | `ggx update` |
+
+<details>
+<summary>Useful pull request and merge options</summary>
+
+```sh
+ggx pr --base dev       # Open against dev
+ggx pr --closes 123     # Use issue 123 as context
+ggx merge --keep-branch # Keep the branch after merging
+ggx squash --keep-branch
+```
+
+Add `--admin` to `merge` or `squash` when GitHub requires elevated permissions.
+
+</details>
+
+<details>
+<summary>What happens behind the scenes?</summary>
+
+`ggx` reads the current git state and diff, then asks your chosen AI CLI to generate the relevant branch name, commit message, or pull request copy. You review the result before it stages, commits, or pushes anything.
+
+It uses:
+
+- `gpt-5.6-luna` with low reasoning effort through Codex
+- `haiku` through Claude
+- GitHub CLI for pull requests, merges, and branch cleanup
+
+Syncing and merging require a clean worktree. Pull request creation stops if the current branch already has an open pull request.
+
+</details>
 
 ## License
 
