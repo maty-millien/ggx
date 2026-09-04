@@ -104,7 +104,7 @@ Example output: `feat/refresh-auth-session`
 3. When run from the selected base with pending changes, generate a new branch, commit, and PR together.
 4. When run from a feature branch with pending changes, generate the commit and PR together.
 5. When run from a clean feature branch, generate only the PR.
-6. Fail fast when there are no changes or an open pull request already exists for the current feature branch.
+6. Fail fast when there are no changes or an open pull request already exists for the current feature branch. Closed and merged pull requests do not block a new pull request from that branch.
 7. Generate every required artifact in one Codex CLI request, with one retry for invalid output or an existing branch name.
 8. Show all generated output and confirm once before creating a branch, committing, pushing, or creating the PR.
 9. Create the PR against the selected base and support draft PRs and `--closes` issue context.

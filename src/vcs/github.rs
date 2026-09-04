@@ -64,7 +64,18 @@ pub fn pull_request(target: Option<&str>) -> anyhow::Result<PullRequest> {
 }
 
 pub fn open_pull_request(branch: &str) -> anyhow::Result<Option<PullRequest>> {
-    let args = pr_view_args(Some(branch));
+    let args = vec![
+        "pr",
+        "list",
+        "--head",
+        branch,
+        "--state",
+        "open",
+        "--limit",
+        "1",
+        "--json",
+        PR_JSON_FIELDS,
+    ];
     let output =
         run_output(&args).map_err(|error| anyhow::anyhow!("failed to run gh: {}", error))?;
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -137,7 +148,18 @@ fn optional_pull_request_from_output(
     stderr: &str,
 ) -> anyhow::Result<Option<PullRequest>> {
     if success {
-        return parse_pull_request(stdout).map(Some);
+        let value: serde_json::Value = serde_json::from_str(stdout)?;
+        let value = match value {
+            serde_json::Value::Array(values) => {
+                let Some(value) = values.into_iter().next() else {
+                    return Ok(None);
+                };
+                value
+            }
+            value => value,
+        };
+
+        return parse_pull_request(&value.to_string()).map(Some);
     }
 
     let stderr = stderr.trim();

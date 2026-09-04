@@ -95,7 +95,7 @@ It uses:
 - `haiku` through Claude
 - GitHub CLI for pull requests, merges, and branch cleanup
 
-Syncing and merging require a clean worktree. Pull request creation stops if the current branch already has an open pull request.
+Syncing and merging require a clean worktree. Pull request creation stops if the current branch already has an open pull request. Closed and merged pull requests do not prevent creating a new one from the same branch.
 
 </details>
 
