@@ -1,5 +1,5 @@
 use std::ffi::OsStr;
-use std::process::{Command, Stdio};
+use std::process::Command;
 
 pub struct LocalBranch {
     pub name: String,
@@ -12,7 +12,7 @@ pub fn run(args: &[&str]) -> anyhow::Result<String> {
 
 pub fn run_with_env(args: &[&str], envs: &[(&str, &OsStr)]) -> anyhow::Result<String> {
     let mut command = Command::new("git");
-    command.args(args).stderr(Stdio::null());
+    command.args(args);
 
     for (key, value) in envs {
         command.env(key, value);
@@ -23,7 +23,19 @@ pub fn run_with_env(args: &[&str], envs: &[(&str, &OsStr)]) -> anyhow::Result<St
     if output.status.success() {
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
     } else {
-        anyhow::bail!("git {} failed", args.join(" "));
+        anyhow::bail!(failure_message(args, &output.stderr));
+    }
+}
+
+fn failure_message(args: &[&str], stderr: &[u8]) -> String {
+    let command = format!("git {} failed", args.join(" "));
+    let detail = String::from_utf8_lossy(stderr);
+    let detail = detail.trim();
+
+    if detail.is_empty() {
+        command
+    } else {
+        format!("{command}: {detail}")
     }
 }
 
@@ -217,7 +229,26 @@ fn parse_local_branches(output: &str) -> Vec<LocalBranch> {
 
 #[cfg(test)]
 mod tests {
-    use super::{has_output, parse_branch_names, parse_local_branches};
+    use super::{failure_message, has_output, parse_branch_names, parse_local_branches};
+
+    #[test]
+    fn failure_message_includes_git_stderr() {
+        assert_eq!(
+            failure_message(
+                &["ls-files", "--unmerged"],
+                b"fatal: not a git repository\n"
+            ),
+            "git ls-files --unmerged failed: fatal: not a git repository"
+        );
+    }
+
+    #[test]
+    fn failure_message_falls_back_when_stderr_is_empty() {
+        assert_eq!(
+            failure_message(&["status", "--porcelain"], b""),
+            "git status --porcelain failed"
+        );
+    }
 
     #[test]
     fn has_output_rejects_empty_or_whitespace() {

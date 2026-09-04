@@ -34,6 +34,7 @@ ggx is a fast Rust git workflow CLI with AI generated branches, commits, and PR 
 | Protected branch merges            | Use `--admin` when needed        |
 | AI provider scope                   | One selection per user           |
 | Commands before provider setup      | Fail with setup instructions     |
+| Failed Git commands                 | Include Git's error output       |
 
 ## Distribution
 
