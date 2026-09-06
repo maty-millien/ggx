@@ -22,7 +22,7 @@ Works on macOS and Linux. You'll need `git`, GitHub CLI (`gh`), and either Codex
 
 Authenticate `gh` and your chosen AI CLI before running `ggx setup`. Your provider choice applies to every repository. Run setup again at any time to switch.
 
-`ggx` checks for stable updates once a day in the background. To update now, run:
+`ggx` checks for stable updates once a day in the background. To update now and see the current version, installed version, and elapsed time, run:
 
 ```sh
 ggx update

@@ -37,19 +37,25 @@ pub fn run() -> anyhow::Result<()> {
         );
     }
 
+    let current_version = env!("CARGO_PKG_VERSION");
+    tui::success("Current version", current_version);
+    tui::rail();
+
     let marker = cache_marker_path(env::var_os("XDG_CACHE_HOME"), env::var_os("HOME"));
-    let outcome = tui::spinner("Updating ggx", || {
-        perform_update(
-            &updater,
-            &executable,
-            marker.as_deref(),
-            env!("CARGO_PKG_VERSION"),
-        )
+    let (outcome, elapsed) = tui::timed_spinner("Checking for updates", || {
+        perform_update(&updater, &executable, marker.as_deref(), current_version)
     })?;
 
     match outcome {
-        UpdateOutcome::Current => tui::warning("Already up to date"),
-        UpdateOutcome::Updated(version) => tui::success("Updated to", &version),
+        UpdateOutcome::Current => {
+            tui::step("Update check complete", elapsed);
+            tui::warning("Already up to date");
+        }
+        UpdateOutcome::Updated(version) => {
+            tui::success("New version", &version);
+            tui::rail();
+            tui::success("Update complete", &format!("{:.1}s", elapsed.as_secs_f32()));
+        }
     }
 
     Ok(())
