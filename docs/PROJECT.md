@@ -127,7 +127,8 @@ Example output: `feat/refresh-auth-session`
 1. Installed copies check for a stable release silently in the background at most once every 24 hours.
 2. Automatic update failures never interrupt the active command.
 3. `ggx update` runs the installed `ggx-update` helper immediately and waits for it to finish.
-4. Manual updates report the installed version or fail with the updater error.
+4. Manual updates show the current version, the installed version when it changes, and the elapsed time as a sequence of terminal steps. The final result has no trailing rail.
+5. Manual update failures stop immediately with the updater error.
 
 ## Merge Behavior
 
