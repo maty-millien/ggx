@@ -83,20 +83,20 @@ pub fn select<T: Clone>(prompt: &str, choices: &[Choice<'_, T>]) -> anyhow::Resu
     let term = Term::stdout();
     flush_pending_input();
     let mut selected = 0;
-    let mut rendered = 0;
+    let mut rendered = Vec::new();
 
     loop {
-        clear_rendered(&term, rendered)?;
+        clear_rendered(&term, &rendered)?;
         rendered = render_select(prompt, choices, selected);
 
         match read_select_key()? {
             SelectKey::Confirm => {
-                finish_select(&term, prompt, choices, selected, rendered)?;
+                finish_select(&term, prompt, choices, selected, &rendered)?;
                 return Ok(choices[selected].value.clone());
             }
             SelectKey::Cancel => {
                 if let Some(index) = cancel_choice(choices) {
-                    finish_select(&term, prompt, choices, index, rendered)?;
+                    finish_select(&term, prompt, choices, index, &rendered)?;
                     return Ok(choices[index].value.clone());
                 }
             }
@@ -297,8 +297,7 @@ fn split_word(word: &str, width: usize) -> Vec<String> {
     parts
 }
 
-fn render_select<T>(prompt: &str, choices: &[Choice<'_, T>], selected: usize) -> usize {
-    let columns = Term::stdout().size().1 as usize;
+fn render_select<T>(prompt: &str, choices: &[Choice<'_, T>], selected: usize) -> Vec<String> {
     let mut lines = vec![format!("{} {}", style("+").green(), style(prompt).bold())];
     lines.extend(
         choices
@@ -311,7 +310,7 @@ fn render_select<T>(prompt: &str, choices: &[Choice<'_, T>], selected: usize) ->
         println!("{}", line);
     }
 
-    lines.iter().map(|line| visual_rows(line, columns)).sum()
+    lines
 }
 
 fn visual_rows(line: &str, columns: usize) -> usize {
@@ -319,8 +318,10 @@ fn visual_rows(line: &str, columns: usize) -> usize {
     width.div_ceil(columns.max(1)).max(1)
 }
 
-fn clear_rendered(term: &Term, rows: usize) -> anyhow::Result<()> {
-    if rows > 0 && io::stdin().is_terminal() {
+fn clear_rendered(term: &Term, lines: &[String]) -> anyhow::Result<()> {
+    if !lines.is_empty() && io::stdin().is_terminal() {
+        let columns = term.size().1 as usize;
+        let rows = lines.iter().map(|line| visual_rows(line, columns)).sum();
         term.clear_last_lines(rows)?;
     }
 
@@ -332,7 +333,7 @@ fn finish_select<T>(
     prompt: &str,
     choices: &[Choice<'_, T>],
     selected: usize,
-    rendered: usize,
+    rendered: &[String],
 ) -> anyhow::Result<()> {
     clear_rendered(term, rendered)?;
 
