@@ -14,6 +14,10 @@ install-updater = true
 # Trigger releases through workflow dispatch
 dispatch-releases = true
 # Target platforms to build apps for (Rust target-triple syntax)
-targets = ["aarch64-apple-darwin", "aarch64-unknown-linux-gnu", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu"]
+targets = ["aarch64-apple-darwin", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-gnu"]
 # Where to host releases
 hosting = "github"
+# Extra steps injected before each build (relative to .github/workflows)
+github-build-setup = "release-build-setup.yml"
+# The generated release workflow is hand-edited to drop the unused announce job
+allow-dirty = ["ci"]

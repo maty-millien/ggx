@@ -1,0 +1,4 @@
+- name: Cache Rust build
+  uses: Swatinem/rust-cache@v2
+  with:
+    key: dist-${{ join(matrix.targets, '-') }}
