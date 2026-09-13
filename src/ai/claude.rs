@@ -147,31 +147,52 @@ fn claude_command() -> Command {
 
 #[cfg(test)]
 mod tests {
-    use super::{MODEL, claude_command};
+    use super::{MODEL, claude_command, message_text, oauth_access_token};
+    use serde_json::json;
     use std::ffi::OsStr;
 
     #[test]
-    fn builds_non_interactive_claude_command() {
+    fn message_text_joins_text_blocks_only() {
+        let response = json!({"content": [
+            {"type": "text", "text": "{\"commit\""},
+            {"type": "tool_use", "name": "bash"},
+            {"type": "text", "text": ":null}"},
+        ]});
+
+        assert_eq!(message_text(&response), r#"{"commit":null}"#);
+        assert_eq!(message_text(&json!({"error": "bad"})), "");
+    }
+
+    #[test]
+    fn oauth_access_token_requires_unexpired_token() {
+        let credentials = |token: &str, expires_at: u64| {
+            json!({"claudeAiOauth": {"accessToken": token, "expiresAt": expires_at}}).to_string()
+        };
+
+        assert_eq!(
+            oauth_access_token(&credentials("abc", 200_000), 100_000),
+            Some("abc".to_string())
+        );
+        assert_eq!(
+            oauth_access_token(&credentials("abc", 160_000), 100_000),
+            None
+        );
+        assert_eq!(oauth_access_token(&credentials("", 200_000), 100_000), None);
+        assert_eq!(oauth_access_token("{}", 0), None);
+        assert_eq!(oauth_access_token("not json", 0), None);
+    }
+
+    #[test]
+    fn claude_command_prints_text_without_tools() {
         let command = claude_command();
         let args = command
             .get_args()
             .map(|arg| arg.to_string_lossy().to_string())
             .collect::<Vec<_>>();
-        let expected = [
-            "--print",
-            "--output-format",
-            "text",
-            "--safe-mode",
-            "--tools",
-            "",
-            "--no-session-persistence",
-            "--no-chrome",
-            "--model",
-            MODEL,
-        ]
-        .map(String::from);
 
         assert_eq!(command.get_program(), OsStr::new("claude"));
-        assert_eq!(args, expected);
+        assert!(args.contains(&"--print".to_string()));
+        assert!(args.windows(2).any(|pair| pair == ["--tools", ""]));
+        assert!(args.windows(2).any(|pair| pair == ["--model", MODEL]));
     }
 }

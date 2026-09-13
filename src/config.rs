@@ -82,7 +82,8 @@ mod tests {
     use super::{NOT_SETUP, load_from, parse, path_from};
     use crate::ai::Provider;
     use std::ffi::OsString;
-    use std::path::Path;
+    use std::fs;
+    use std::path::{Path, PathBuf};
 
     #[test]
     fn resolves_xdg_config_path() {
@@ -96,10 +97,23 @@ mod tests {
     }
 
     #[test]
-    fn falls_back_to_home_config_path() {
+    fn falls_back_to_home_config_path_when_xdg_is_unset_or_empty() {
         assert_eq!(
             path_from(None, Some(OsString::from("/home/user"))),
             Some(Path::new("/home/user/.config/ggx/config.json").to_path_buf())
+        );
+        assert_eq!(
+            path_from(Some(OsString::new()), Some(OsString::from("/home/user"))),
+            Some(Path::new("/home/user/.config/ggx/config.json").to_path_buf())
+        );
+    }
+
+    #[test]
+    fn has_no_path_without_environment_directories() {
+        assert_eq!(path_from(None, None), None);
+        assert_eq!(
+            path_from(Some(OsString::new()), Some(OsString::new())),
+            None
         );
     }
 
@@ -107,6 +121,7 @@ mod tests {
     fn parses_known_providers() {
         assert_eq!(parse(r#"{"provider":"codex"}"#), Some(Provider::Codex));
         assert_eq!(parse(r#"{"provider":"claude"}"#), Some(Provider::Claude));
+        assert_eq!(parse(r#"{"provider":"copilot"}"#), Some(Provider::Copilot));
     }
 
     #[test]
@@ -121,5 +136,24 @@ mod tests {
         let error = load_from(Path::new("/path/that/does/not/exist/ggx.json")).unwrap_err();
 
         assert_eq!(error.to_string(), NOT_SETUP);
+    }
+
+    #[test]
+    fn loads_provider_from_file_and_reports_invalid_contents() {
+        let path = temp_path("config.json");
+
+        fs::write(&path, "{\"provider\":\"claude\"}\n").unwrap();
+        assert_eq!(load_from(&path).unwrap(), Provider::Claude);
+
+        fs::write(&path, "{}").unwrap();
+        let error = load_from(&path).unwrap_err().to_string();
+        assert!(error.starts_with("Invalid ggx configuration at"));
+        assert!(error.ends_with("Run `ggx setup` again."));
+
+        let _ = fs::remove_file(path);
+    }
+
+    fn temp_path(name: &str) -> PathBuf {
+        std::env::temp_dir().join(format!("ggx-config-test-{}-{name}", std::process::id()))
     }
 }

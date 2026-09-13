@@ -164,13 +164,16 @@ pub(crate) fn strip_markdown_fence(response: &str) -> &str {
 
 #[cfg(test)]
 mod tests {
-    use super::{Provider, direct_response_prompt, response};
+    use super::{Provider, direct_response_prompt, response, strip_markdown_fence};
 
     #[test]
-    fn parses_provider_names() {
-        assert_eq!(Provider::parse("codex"), Some(Provider::Codex));
-        assert_eq!(Provider::parse("claude"), Some(Provider::Claude));
+    fn provider_names_round_trip() {
+        for provider in [Provider::Codex, Provider::Claude, Provider::Copilot] {
+            assert_eq!(Provider::parse(provider.as_str()), Some(provider));
+            assert_eq!(provider.to_string(), provider.label());
+        }
         assert_eq!(Provider::parse("other"), None);
+        assert_eq!(Provider::parse("Codex"), None);
     }
 
     #[test]
@@ -204,9 +207,20 @@ mod tests {
     }
 
     #[test]
+    fn strip_markdown_fence_handles_fence_variants() {
+        assert_eq!(strip_markdown_fence("```\nplain\n```"), "plain");
+        assert_eq!(strip_markdown_fence("```JSON\n{}\n```"), "{}");
+        assert_eq!(strip_markdown_fence("no fence"), "no fence");
+        assert_eq!(strip_markdown_fence("```rust\nfn\n```"), "```rust\nfn\n```");
+        assert_eq!(strip_markdown_fence("```\nunclosed"), "```\nunclosed");
+    }
+
+    #[test]
     fn reports_provider_failure() {
         let error = response(Provider::Claude, false, b"", b"not authenticated").unwrap_err();
-
         assert_eq!(error.to_string(), "Claude CLI failed: not authenticated");
+
+        let error = response(Provider::Codex, false, b"partial", b"").unwrap_err();
+        assert_eq!(error.to_string(), "Codex CLI failed");
     }
 }

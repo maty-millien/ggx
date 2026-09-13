@@ -577,12 +577,26 @@ mod tests {
             commit_message("feat(cli): add command"),
             "feat(cli): add command"
         );
+        assert_eq!(commit_message("feat: add command"), "feat: add command");
         assert_eq!(commit_message("plain message"), "plain message");
+    }
+
+    #[test]
+    fn wrap_line_keeps_short_and_empty_lines() {
+        assert_eq!(wrap_line("one two", 10), vec!["one two"]);
+        assert_eq!(wrap_line("", 10), vec![""]);
+        assert_eq!(wrap_line("   ", 10), vec!["   "]);
+    }
+
+    #[test]
+    fn wrap_line_breaks_between_words() {
+        assert_eq!(wrap_line("one two three", 7), vec!["one two", "three"]);
     }
 
     #[test]
     fn wrap_line_wraps_long_words() {
         assert_eq!(wrap_line("abcdefgh", 3), vec!["abc", "def", "gh"]);
+        assert_eq!(wrap_line("ab cdefgh", 3), vec!["ab", "cde", "fgh"]);
     }
 
     #[test]
@@ -627,12 +641,14 @@ mod tests {
         let choices = [Choice::new("Run", 1), Choice::new("cancel", 2)];
 
         assert_eq!(cancel_choice(&choices), Some(1));
+        assert_eq!(cancel_choice(&choices[..1]), None);
     }
 
     #[test]
     fn digit_key_uses_one_based_indices() {
         assert_eq!(digit_key('1'), super::SelectKey::Index(0));
         assert_eq!(digit_key('3'), super::SelectKey::Index(2));
+        assert_eq!(digit_key('0'), super::SelectKey::Ignore);
         assert_eq!(digit_key('x'), super::SelectKey::Ignore);
     }
 }

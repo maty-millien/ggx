@@ -204,10 +204,14 @@ mod tests {
     }
 
     #[test]
-    fn describes_single_workflow_action() {
+    fn describes_workflow_action() {
         assert_eq!(
             action_prompt(true, true, "feat/api", "dev"),
             "Create feat/api, commit, push, and create PR into dev?"
+        );
+        assert_eq!(
+            action_prompt(false, true, "feat/api", "dev"),
+            "Commit, push feat/api, and create PR into dev?"
         );
         assert_eq!(
             action_prompt(false, false, "feat/api", "dev"),

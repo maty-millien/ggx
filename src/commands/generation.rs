@@ -290,7 +290,19 @@ fn render_issues(issues: &[Issue]) -> String {
 #[cfg(test)]
 mod tests {
     use super::{Context, Issue, PendingChanges, Request, generate_with, parse, render};
+    use crate::commands::commit;
     use std::cell::Cell;
+
+    const ALL: Request = Request {
+        branch: true,
+        commit: true,
+        pull_request: true,
+    };
+    const BRANCH_ONLY: Request = Request {
+        branch: true,
+        commit: false,
+        pull_request: false,
+    };
 
     fn context() -> Context {
         Context {
@@ -322,33 +334,85 @@ mod tests {
 
     #[test]
     fn renders_all_requested_artifacts_and_context() {
-        let prompt = render(
-            &context(),
-            Request {
-                branch: true,
-                commit: true,
-                pull_request: true,
-            },
-            None,
-        );
+        let prompt = render(&context(), ALL, None);
 
         assert!(prompt.contains("Set branch to a concise name"));
         assert!(prompt.contains("Set commit to one Conventional Commit"));
+        assert!(prompt.contains("Include GitHub closing references only for the issues listed"));
         assert!(prompt.contains("## Pull Request Base\n\n````\ndev"));
+        assert!(prompt.contains("## User Prompt\n\n````\nadd retries"));
         assert!(prompt.contains("## Existing Commits"));
         assert!(prompt.contains("## Pending Changed Files"));
+        assert!(prompt.contains("## README\n\n````\n# App"));
         assert!(prompt.contains("Reference: #12"));
+        assert!(!prompt.contains("## Previous Attempt"));
+        assert!(!prompt.contains("## Notes"));
+    }
+
+    #[test]
+    fn renders_null_instructions_and_omits_missing_sections() {
+        let context = Context {
+            base: None,
+            user_prompt: None,
+            commits: String::new(),
+            committed_files: String::new(),
+            pending: None,
+            issues: Vec::new(),
+            ..context()
+        };
+        let request = Request {
+            branch: false,
+            commit: false,
+            pull_request: true,
+        };
+
+        let prompt = render(&context, request, Some("bad json"));
+
+        assert!(prompt.contains("Set branch to null."));
+        assert!(prompt.contains("Set commit to null."));
+        assert!(prompt.contains("Do not mention or close any issue; none are provided."));
+        assert!(prompt.contains("## Pull Request Base\n\n````\nNot applicable"));
+        assert!(prompt.contains("The previous response was rejected: bad json"));
+        assert!(!prompt.contains("## User Prompt"));
+        assert!(!prompt.contains("## Existing Commits"));
+        assert!(!prompt.contains("## Pending Changed Files"));
+        assert!(!prompt.contains("## Issues To Close"));
+    }
+
+    #[test]
+    fn renders_pending_notes_from_truncated_commit_context() {
+        let commit_context = commit::context::Context {
+            branch: "main".to_string(),
+            files: "M\tsrc/main.rs".to_string(),
+            stat: String::new(),
+            numstat: String::new(),
+            summary: String::new(),
+            readme: None,
+            diff: String::new(),
+            diff_truncated: true,
+            diff_file_truncated: true,
+            readme_truncated: true,
+        };
+        let pending = PendingChanges::from(&commit_context);
+        assert_eq!(pending.notes.len(), 3);
+
+        let context = Context {
+            pending: Some(pending),
+            ..context()
+        };
+        let prompt = render(&context, ALL, None);
+
+        assert!(prompt.contains(
+            "## Notes\n\nDiff exceeded context budget.\nOne or more file diffs were truncated.\nREADME was truncated."
+        ));
+        assert!(!prompt.contains("## README"));
     }
 
     #[test]
     fn parses_requested_json_fields() {
         let output = parse(
             r###"{"branch":"feat/add-retries","commit":"feat(api): add retries","pull_request":{"title":"Add retries","body":"## Summary\nAdd retries.\n\n## Changes\n- Retry requests."}}"###,
-            Request {
-                branch: true,
-                commit: true,
-                pull_request: true,
-            },
+            ALL,
         )
         .unwrap();
 
@@ -374,15 +438,48 @@ mod tests {
     }
 
     #[test]
+    fn rejects_missing_or_invalid_requested_fields() {
+        let error = |raw: &str| parse(raw, ALL).err().expect("expected error").to_string();
+
+        assert!(error("not json").contains("expected"));
+        assert_eq!(
+            error(r#"{"commit":"feat(a): b","pull_request":{"title":"t","body":"b"}}"#),
+            "Generated output must include branch."
+        );
+        assert_eq!(
+            error(r#"{"branch":"feat/a","pull_request":{"title":"t","body":"b"}}"#),
+            "Generated output must include commit."
+        );
+        assert_eq!(
+            error(r#"{"branch":"feat/a","commit":"feat(a): b","pull_request":null}"#),
+            "Generated output must include pull_request."
+        );
+        assert_eq!(
+            error(r#"{"branch":"feat/a","commit":"feat(a): b","pull_request":{"body":"b"}}"#),
+            "Generated pull request must include a title."
+        );
+        assert_eq!(
+            error(r#"{"branch":"feat/a","commit":"feat(a): b","pull_request":{"title":"t"}}"#),
+            "Generated pull request must include a body."
+        );
+        assert!(
+            error(
+                r#"{"branch":"bad","commit":"feat(a): b","pull_request":{"title":"t","body":"b"}}"#
+            )
+            .contains("type/slug")
+        );
+        assert!(
+            error(r#"{"branch":"feat/a","commit":"bad","pull_request":{"title":"t","body":"b"}}"#)
+                .contains("type(scope): subject")
+        );
+    }
+
+    #[test]
     fn retries_once_after_invalid_output() {
         let calls = Cell::new(0);
         let output = generate_with(
             &context(),
-            Request {
-                branch: true,
-                commit: false,
-                pull_request: false,
-            },
+            BRANCH_ONLY,
             |_| {
                 calls.set(calls.get() + 1);
                 if calls.get() == 1 {
@@ -404,11 +501,7 @@ mod tests {
         let calls = Cell::new(0);
         let output = generate_with(
             &context(),
-            Request {
-                branch: true,
-                commit: false,
-                pull_request: false,
-            },
+            BRANCH_ONLY,
             |_| {
                 calls.set(calls.get() + 1);
                 let branch = if calls.get() == 1 {
@@ -430,15 +523,48 @@ mod tests {
     }
 
     #[test]
+    fn retry_prompt_includes_previous_error() {
+        let prompts = std::cell::RefCell::new(Vec::new());
+        let result = generate_with(
+            &context(),
+            BRANCH_ONLY,
+            |prompt| {
+                prompts.borrow_mut().push(prompt.to_string());
+                Ok(r#"{"branch":"feat/existing","commit":null,"pull_request":null}"#.to_string())
+            },
+            |_| Ok(true),
+        );
+
+        assert_eq!(
+            result.err().expect("expected error").to_string(),
+            "Branch 'feat/existing' already exists."
+        );
+        let prompts = prompts.borrow();
+        assert!(!prompts[0].contains("## Previous Attempt"));
+        assert!(prompts[1].contains("rejected: Branch 'feat/existing' already exists."));
+    }
+
+    #[test]
+    fn propagates_generation_failure_after_retry() {
+        let result = generate_with(
+            &context(),
+            BRANCH_ONLY,
+            |_| anyhow::bail!("provider down"),
+            |_| Ok(false),
+        );
+
+        assert_eq!(
+            result.err().expect("expected error").to_string(),
+            "provider down"
+        );
+    }
+
+    #[test]
     fn stops_after_two_invalid_outputs() {
         let calls = Cell::new(0);
         let result = generate_with(
             &context(),
-            Request {
-                branch: true,
-                commit: false,
-                pull_request: false,
-            },
+            BRANCH_ONLY,
             |_| {
                 calls.set(calls.get() + 1);
                 Ok("invalid".to_string())

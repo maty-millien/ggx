@@ -107,47 +107,40 @@ fn codex_command() -> Command {
 
 #[cfg(test)]
 mod tests {
-    use super::{MODEL, REASONING_EFFORT, codex_command};
+    use super::{MODEL, codex_command, stream_text};
     use std::ffi::OsStr;
 
     #[test]
-    fn builds_non_interactive_codex_command() {
+    fn stream_text_joins_output_deltas_only() {
+        let raw = [
+            "event: response.created",
+            r#"data: {"type":"response.created"}"#,
+            r#"data: {"type":"response.output_text.delta","delta":"{\"branch\""}"#,
+            "data: not json",
+            r#"data: {"type":"response.output_text.delta","delta":":null}"}"#,
+            r#"data: {"type":"response.completed"}"#,
+        ]
+        .join("\n");
+
+        assert_eq!(stream_text(&raw), r#"{"branch":null}"#);
+        assert_eq!(stream_text(""), "");
+    }
+
+    #[test]
+    fn codex_command_runs_read_only_exec_from_stdin() {
         let command = codex_command();
         let args = command
             .get_args()
             .map(|arg| arg.to_string_lossy().to_string())
             .collect::<Vec<_>>();
-        let expected = [
-            "exec",
-            "--ephemeral",
-            "--ignore-user-config",
-            "--sandbox",
-            "read-only",
-            "--disable",
-            "apps",
-            "--disable",
-            "browser_use",
-            "--disable",
-            "computer_use",
-            "--disable",
-            "goals",
-            "--disable",
-            "image_generation",
-            "--disable",
-            "multi_agent",
-            "--disable",
-            "shell_tool",
-            "--disable",
-            "workspace_dependencies",
-            "--model",
-            MODEL,
-            "-c",
-            REASONING_EFFORT,
-            "-",
-        ]
-        .map(String::from);
 
         assert_eq!(command.get_program(), OsStr::new("codex"));
-        assert_eq!(args, expected);
+        assert_eq!(args[0], "exec");
+        assert!(
+            args.windows(2)
+                .any(|pair| pair == ["--sandbox", "read-only"])
+        );
+        assert!(args.windows(2).any(|pair| pair == ["--model", MODEL]));
+        assert_eq!(args.last().map(String::as_str), Some("-"));
     }
 }

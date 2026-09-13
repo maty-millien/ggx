@@ -298,6 +298,7 @@ mod tests {
     use std::fs;
     use std::path::{Path, PathBuf};
     use std::process::Command;
+    use std::sync::atomic::{AtomicUsize, Ordering};
     use std::time::{SystemTime, UNIX_EPOCH};
 
     #[test]
@@ -413,6 +414,40 @@ mod tests {
 
         assert!(context.files.contains("A\tuntracked.txt"));
         assert!(staged.trim().is_empty());
+        assert_eq!(context.branch, "feature");
+        assert_eq!(context.readme, None);
+        assert!(!context.diff_truncated);
+    }
+
+    #[test]
+    fn fails_without_changes() {
+        let repo = TempRepo::new();
+        repo.write("tracked.txt", "base\n");
+        repo.git(&["add", "--all"]);
+        repo.git(&["commit", "-m", "initial"]);
+
+        let error = collect_for_branch_with_env("feature".to_string(), &repo.envs())
+            .err()
+            .expect("expected error");
+
+        assert_eq!(error.to_string(), "No changes found.");
+    }
+
+    #[test]
+    fn reads_readme_from_root_before_docs_ignoring_case() {
+        let repo = TempRepo::new();
+        repo.write("docs/README.md", "# Docs\n");
+        repo.git(&["add", "--all"]);
+        repo.git(&["commit", "-m", "initial"]);
+        repo.write("change.txt", "new\n");
+
+        let context = collect_for_branch_with_env("feature".to_string(), &repo.envs()).unwrap();
+        assert_eq!(context.readme.as_deref(), Some("# Docs\n"));
+        assert!(!context.readme_truncated);
+
+        repo.write("readme.TXT", "# Root\n");
+        let context = collect_for_branch_with_env("feature".to_string(), &repo.envs()).unwrap();
+        assert_eq!(context.readme.as_deref(), Some("# Root\n"));
     }
 
     struct TempRepo {
@@ -422,9 +457,11 @@ mod tests {
 
     impl TempRepo {
         fn new() -> Self {
+            static COUNTER: AtomicUsize = AtomicUsize::new(0);
             let path = std::env::temp_dir().join(format!(
-                "ggx-test-{}-{}",
+                "ggx-test-{}-{}-{}",
                 std::process::id(),
+                COUNTER.fetch_add(1, Ordering::Relaxed),
                 SystemTime::now()
                     .duration_since(UNIX_EPOCH)
                     .map(|duration| duration.as_nanos())

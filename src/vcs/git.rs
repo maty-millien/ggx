@@ -271,11 +271,14 @@ mod tests {
 
     #[test]
     fn parse_local_branches_reads_optional_upstream_status() {
-        let branches = parse_local_branches("main\t\nfeature\t[gone]\n");
+        let branches = parse_local_branches("main\t\nfeature\t[gone]\n\nlegacy\n");
 
+        assert_eq!(branches.len(), 3);
         assert_eq!(branches[0].name, "main");
         assert_eq!(branches[0].upstream_status, "");
         assert_eq!(branches[1].name, "feature");
         assert_eq!(branches[1].upstream_status, "[gone]");
+        assert_eq!(branches[2].name, "legacy");
+        assert_eq!(branches[2].upstream_status, "");
     }
 }

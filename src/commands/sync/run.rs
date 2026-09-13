@@ -96,7 +96,7 @@ fn is_gone_without_ahead(status: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::cleanup_candidates;
+    use super::{branch_label, cleanup_candidates};
     use crate::vcs::git::LocalBranch;
 
     fn branch(name: &str, upstream_status: &str) -> LocalBranch {
@@ -104,6 +104,13 @@ mod tests {
             name: name.to_string(),
             upstream_status: upstream_status.to_string(),
         }
+    }
+
+    #[test]
+    fn branch_label_pluralizes_counts() {
+        assert_eq!(branch_label(1), "branch");
+        assert_eq!(branch_label(0), "branches");
+        assert_eq!(branch_label(2), "branches");
     }
 
     #[test]

@@ -78,6 +78,12 @@ mod tests {
     }
 
     #[test]
+    fn rejects_empty_output() {
+        assert!(normalize("").is_err());
+        assert!(normalize("\n```\n```\n").is_err());
+    }
+
+    #[test]
     fn rejects_missing_slug() {
         assert!(normalize("feat/---").is_err());
     }

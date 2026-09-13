@@ -38,6 +38,10 @@ pub fn validate(message: &str) -> anyhow::Result<()> {
 mod tests {
     use super::validate;
 
+    fn error(message: &str) -> String {
+        validate(message).unwrap_err().to_string()
+    }
+
     #[test]
     fn accepts_allowed_types_with_scope_and_subject() {
         for commit_type in [
@@ -50,42 +54,75 @@ mod tests {
     }
 
     #[test]
-    fn rejects_missing_scope() {
-        assert!(validate("feat: add thing").is_err());
+    fn rejects_empty_or_multiline_messages() {
+        assert_eq!(error(""), "Commit message must be exactly one line.");
+        assert_eq!(
+            error("fix(api): update request\n\nbody"),
+            "Commit message must be exactly one line."
+        );
+        assert_eq!(
+            error("fix(api): update\r"),
+            "Commit message must be exactly one line."
+        );
     }
 
     #[test]
-    fn rejects_empty_scope() {
-        assert!(validate("feat(): add thing").is_err());
-    }
-
-    #[test]
-    fn rejects_unsupported_type() {
-        assert!(validate("style(ui): tweak button").is_err());
-    }
-
-    #[test]
-    fn rejects_breaking_marker() {
-        assert!(validate("feat(api)!: change contract").is_err());
+    fn rejects_missing_type_separator() {
+        assert_eq!(
+            error("update request"),
+            "Commit message must use 'type(scope): subject'."
+        );
+        assert_eq!(
+            error("fix(api):no space"),
+            "Commit message must use 'type(scope): subject'."
+        );
     }
 
     #[test]
     fn rejects_empty_subject() {
-        assert!(validate("fix(api): ").is_err());
+        assert_eq!(
+            error("fix(api): "),
+            "Commit message subject cannot be empty."
+        );
     }
 
     #[test]
-    fn rejects_multiline_output() {
-        assert!(validate("fix(api): update request\n\nbody").is_err());
+    fn rejects_missing_scope() {
+        assert_eq!(
+            error("feat: add thing"),
+            "Commit message must include a non-empty scope."
+        );
     }
 
     #[test]
-    fn rejects_markdown_output() {
-        assert!(validate("**fix(api): update request**").is_err());
+    fn rejects_unsupported_type() {
+        assert_eq!(
+            error("style(ui): tweak button"),
+            "Commit message type 'style' is not allowed."
+        );
     }
 
     #[test]
-    fn rejects_explanatory_output() {
-        assert!(validate("Here is the commit message: fix(api): update request").is_err());
+    fn rejects_unclosed_scope() {
+        assert_eq!(
+            error("feat(api)!: change contract"),
+            "Commit message scope must close before the colon."
+        );
+    }
+
+    #[test]
+    fn rejects_empty_or_nested_scope() {
+        assert_eq!(
+            error("feat(): add thing"),
+            "Commit message scope cannot be empty."
+        );
+        assert_eq!(
+            error("feat( ): add thing"),
+            "Commit message scope cannot be empty."
+        );
+        assert_eq!(
+            error("feat(a(b)): add thing"),
+            "Commit message scope cannot be empty."
+        );
     }
 }

@@ -90,6 +90,22 @@ mod tests {
     }
 
     #[test]
+    fn validates_then_saves_selected_provider() {
+        let saved = Cell::new(None);
+        let result = complete(
+            Some(Provider::Codex),
+            |_| Ok(()),
+            |provider| {
+                saved.set(Some(provider));
+                Ok(())
+            },
+        );
+
+        assert!(result.unwrap());
+        assert_eq!(saved.get(), Some(Provider::Codex));
+    }
+
+    #[test]
     fn validates_before_saving() {
         let saved = Cell::new(false);
         let result = complete(

@@ -201,8 +201,8 @@ mod tests {
     }
 
     #[test]
-    fn optional_pull_request_reads_existing_pr() {
-        let output = r#"{
+    fn optional_pull_request_reads_first_listed_pr() {
+        let output = r#"[{
             "number": 42,
             "title": "Add fast fail",
             "url": "https://github.com/owner/repo/pull/42",
@@ -210,12 +210,11 @@ mod tests {
             "baseRefName": "main",
             "mergeStateStatus": "CLEAN",
             "reviewDecision": "APPROVED"
-        }"#;
+        }, {"number": 43}]"#;
 
-        let pull_request =
-            optional_pull_request_from_output(&["pr", "view", "feature"], true, output, "")
-                .unwrap()
-                .unwrap();
+        let pull_request = optional_pull_request_from_output(&["pr", "list"], true, output, "")
+            .unwrap()
+            .unwrap();
 
         assert_eq!(pull_request.number, "42");
         assert_eq!(pull_request.title, "Add fast fail");
@@ -227,12 +226,37 @@ mod tests {
     }
 
     #[test]
-    fn optional_pull_request_returns_none_when_no_pr_exists() {
+    fn optional_pull_request_reads_single_object_output() {
+        let pull_request =
+            optional_pull_request_from_output(&["pr", "list"], true, r#"{"number": 7}"#, "")
+                .unwrap()
+                .unwrap();
+
+        assert_eq!(pull_request.number, "7");
+        assert_eq!(pull_request.title, "");
+    }
+
+    #[test]
+    fn optional_pull_request_returns_none_for_empty_list() {
+        assert!(
+            optional_pull_request_from_output(&["pr", "list"], true, "[]", "")
+                .unwrap()
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn optional_pull_request_rejects_invalid_json() {
+        assert!(optional_pull_request_from_output(&["pr", "list"], true, "not json", "").is_err());
+    }
+
+    #[test]
+    fn optional_pull_request_returns_none_when_gh_reports_no_pr() {
         let pull_request = optional_pull_request_from_output(
             &["pr", "view", "feature"],
             false,
             "",
-            "no pull requests found for branch \"feature\"",
+            "No pull requests found for branch \"feature\"",
         )
         .unwrap();
 
