@@ -1,4 +1,4 @@
-use crate::ai::Provider;
+use crate::ai::{self, Provider};
 use crate::commands::commit;
 use crate::commands::generation::{self, Request};
 use crate::commands::pr::context::Context;
@@ -46,13 +46,14 @@ pub fn run(
     let needs_commit = context.pending.is_some();
     let (generated, elapsed) = tui::timed_spinner("Generating pull request workflow", || {
         generation::generate(
-            provider,
             &generation_context,
             Request {
                 branch: create_branch,
                 commit: needs_commit,
                 pull_request: true,
             },
+            |prompt| ai::generate(provider, prompt),
+            git::branch_exists,
         )
     })?;
     let pull_request = generated

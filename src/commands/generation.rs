@@ -1,6 +1,4 @@
-use crate::ai::{self, Provider};
 use crate::commands::{branch, commit, pr};
-use crate::vcs::git;
 use serde_json::Value;
 
 pub struct Context {
@@ -71,16 +69,7 @@ pub struct Output {
     pub pull_request: Option<pr::validation::PullRequest>,
 }
 
-pub fn generate(provider: Provider, context: &Context, request: Request) -> anyhow::Result<Output> {
-    generate_with(
-        context,
-        request,
-        |prompt| ai::generate(provider, prompt),
-        git::branch_exists,
-    )
-}
-
-fn generate_with<G, B>(
+pub fn generate<G, B>(
     context: &Context,
     request: Request,
     mut generate_text: G,
@@ -90,22 +79,17 @@ where
     G: FnMut(&str) -> anyhow::Result<String>,
     B: FnMut(&str) -> anyhow::Result<bool>,
 {
-    let mut retry = None;
-
-    for attempt in 0..2 {
-        let prompt = render(context, request, retry.as_deref());
-        let result = generate_text(&prompt)
+    let mut attempt = |retry: Option<&str>| {
+        let prompt = render(context, request, retry);
+        generate_text(&prompt)
             .and_then(|raw| parse(&raw, request))
-            .and_then(|output| validate_branch(output, request, &mut branch_exists));
+            .and_then(|output| validate_branch(output, request, &mut branch_exists))
+    };
 
-        match result {
-            Ok(output) => return Ok(output),
-            Err(error) if attempt == 0 => retry = Some(error.to_string()),
-            Err(error) => return Err(error),
-        }
+    match attempt(None) {
+        Ok(output) => Ok(output),
+        Err(error) => attempt(Some(&error.to_string())),
     }
-
-    unreachable!("generation attempts are bounded")
 }
 
 fn validate_branch<B>(
@@ -289,7 +273,7 @@ fn render_issues(issues: &[Issue]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{Context, Issue, PendingChanges, Request, generate_with, parse, render};
+    use super::{Context, Issue, PendingChanges, Request, generate, parse, render};
     use crate::commands::commit;
     use std::cell::Cell;
 
@@ -380,6 +364,21 @@ mod tests {
     }
 
     #[test]
+    fn renders_committed_section_when_only_files_or_commits_are_present() {
+        let files_only = Context {
+            commits: String::new(),
+            ..context()
+        };
+        let commits_only = Context {
+            committed_files: String::new(),
+            ..context()
+        };
+
+        assert!(render(&files_only, ALL, None).contains("## Committed Changed Files"));
+        assert!(render(&commits_only, ALL, None).contains("## Existing Commits"));
+    }
+
+    #[test]
     fn renders_pending_notes_from_truncated_commit_context() {
         let commit_context = commit::context::Context {
             branch: "main".to_string(),
@@ -395,6 +394,16 @@ mod tests {
         };
         let pending = PendingChanges::from(&commit_context);
         assert_eq!(pending.notes.len(), 3);
+        assert!(
+            PendingChanges::from(&commit::context::Context {
+                diff_truncated: false,
+                diff_file_truncated: false,
+                readme_truncated: false,
+                ..commit_context
+            })
+            .notes
+            .is_empty()
+        );
 
         let context = Context {
             pending: Some(pending),
@@ -462,6 +471,12 @@ mod tests {
             error(r#"{"branch":"feat/a","commit":"feat(a): b","pull_request":{"title":"t"}}"#),
             "Generated pull request must include a body."
         );
+        assert_eq!(
+            error(
+                r#"{"branch":"feat/a","commit":"feat(a): b","pull_request":{"title":" ","body":"b"}}"#
+            ),
+            "Generated pull request title and body must not be empty."
+        );
         assert!(
             error(
                 r#"{"branch":"bad","commit":"feat(a): b","pull_request":{"title":"t","body":"b"}}"#
@@ -475,9 +490,50 @@ mod tests {
     }
 
     #[test]
+    fn skips_branch_lookup_when_branch_is_not_requested() {
+        let output = generate(
+            &context(),
+            Request {
+                branch: false,
+                commit: true,
+                pull_request: false,
+            },
+            |_| {
+                Ok(
+                    r#"{"branch":null,"commit":"fix(cli): handle error","pull_request":null}"#
+                        .to_string(),
+                )
+            },
+            |_| anyhow::bail!("branch lookup must be skipped"),
+        )
+        .unwrap();
+
+        assert!(output.branch.is_none());
+        assert_eq!(output.commit.as_deref(), Some("fix(cli): handle error"));
+    }
+
+    #[test]
+    fn returns_first_valid_output_without_retry() {
+        let calls = Cell::new(0);
+        let output = generate(
+            &context(),
+            BRANCH_ONLY,
+            |_| {
+                calls.set(calls.get() + 1);
+                Ok(r#"{"branch":"feat/first","commit":null,"pull_request":null}"#.to_string())
+            },
+            |_| Ok(false),
+        )
+        .unwrap();
+
+        assert_eq!(calls.get(), 1);
+        assert_eq!(output.branch.as_deref(), Some("feat/first"));
+    }
+
+    #[test]
     fn retries_once_after_invalid_output() {
         let calls = Cell::new(0);
-        let output = generate_with(
+        let output = generate(
             &context(),
             BRANCH_ONLY,
             |_| {
@@ -499,7 +555,7 @@ mod tests {
     #[test]
     fn retries_once_when_branch_exists() {
         let calls = Cell::new(0);
-        let output = generate_with(
+        let output = generate(
             &context(),
             BRANCH_ONLY,
             |_| {
@@ -525,7 +581,7 @@ mod tests {
     #[test]
     fn retry_prompt_includes_previous_error() {
         let prompts = std::cell::RefCell::new(Vec::new());
-        let result = generate_with(
+        let result = generate(
             &context(),
             BRANCH_ONLY,
             |prompt| {
@@ -546,7 +602,7 @@ mod tests {
 
     #[test]
     fn propagates_generation_failure_after_retry() {
-        let result = generate_with(
+        let result = generate(
             &context(),
             BRANCH_ONLY,
             |_| anyhow::bail!("provider down"),
@@ -560,9 +616,24 @@ mod tests {
     }
 
     #[test]
+    fn propagates_branch_lookup_failure() {
+        let result = generate(
+            &context(),
+            BRANCH_ONLY,
+            |_| Ok(r#"{"branch":"feat/a","commit":null,"pull_request":null}"#.to_string()),
+            |_| anyhow::bail!("git unavailable"),
+        );
+
+        assert_eq!(
+            result.err().expect("expected error").to_string(),
+            "git unavailable"
+        );
+    }
+
+    #[test]
     fn stops_after_two_invalid_outputs() {
         let calls = Cell::new(0);
-        let result = generate_with(
+        let result = generate(
             &context(),
             BRANCH_ONLY,
             |_| {

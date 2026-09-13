@@ -1,4 +1,4 @@
-use crate::ai::Provider;
+use crate::ai::{self, Provider};
 use crate::commands::{
     branch::context::Context,
     commit::{self, context::Context as CommitContext},
@@ -37,13 +37,14 @@ pub fn run(provider: Provider, input_prompt: Option<String>) -> anyhow::Result<(
     };
     let (generated, elapsed) = tui::timed_spinner("Generating branch workflow", || {
         generation::generate(
-            provider,
             &generation_context,
             Request {
                 branch: true,
                 commit: commit_context.is_some(),
                 pull_request: false,
             },
+            |prompt| ai::generate(provider, prompt),
+            git::branch_exists,
         )
     })?;
     let branch = generated.branch.expect("generation requires branch");

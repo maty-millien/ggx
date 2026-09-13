@@ -1,4 +1,7 @@
+mod parse;
+
 use super::{Provider, direct_response_prompt, run};
+use parse::{message_text, oauth_access_token};
 use serde_json::{Value, json};
 use std::env;
 use std::fs;
@@ -57,17 +60,6 @@ fn direct(prompt: &str) -> Option<String> {
     (!text.is_empty()).then(|| super::strip_markdown_fence(text.trim()).to_string())
 }
 
-fn message_text(response: &Value) -> String {
-    response
-        .get("content")
-        .and_then(Value::as_array)
-        .into_iter()
-        .flatten()
-        .filter(|block| block.get("type").and_then(Value::as_str) == Some("text"))
-        .filter_map(|block| block.get("text")?.as_str())
-        .collect()
-}
-
 fn auth_headers() -> Option<Vec<String>> {
     if let Some(token) = env_var("ANTHROPIC_AUTH_TOKEN") {
         return Some(vec![format!("Authorization: Bearer {token}")]);
@@ -99,17 +91,6 @@ fn credentials() -> Option<String> {
         .status
         .success()
         .then(|| String::from_utf8_lossy(&output.stdout).trim().to_string())
-}
-
-fn oauth_access_token(credentials: &str, now_millis: u64) -> Option<String> {
-    let value: Value = serde_json::from_str(credentials).ok()?;
-    let oauth = value.get("claudeAiOauth")?;
-    if oauth.get("expiresAt")?.as_u64()? <= now_millis + 60_000 {
-        return None;
-    }
-
-    let token = oauth.get("accessToken")?.as_str()?;
-    (!token.is_empty()).then(|| token.to_string())
 }
 
 fn config_directory() -> Option<PathBuf> {
@@ -147,40 +128,8 @@ fn claude_command() -> Command {
 
 #[cfg(test)]
 mod tests {
-    use super::{MODEL, claude_command, message_text, oauth_access_token};
-    use serde_json::json;
+    use super::{MODEL, claude_command};
     use std::ffi::OsStr;
-
-    #[test]
-    fn message_text_joins_text_blocks_only() {
-        let response = json!({"content": [
-            {"type": "text", "text": "{\"commit\""},
-            {"type": "tool_use", "name": "bash"},
-            {"type": "text", "text": ":null}"},
-        ]});
-
-        assert_eq!(message_text(&response), r#"{"commit":null}"#);
-        assert_eq!(message_text(&json!({"error": "bad"})), "");
-    }
-
-    #[test]
-    fn oauth_access_token_requires_unexpired_token() {
-        let credentials = |token: &str, expires_at: u64| {
-            json!({"claudeAiOauth": {"accessToken": token, "expiresAt": expires_at}}).to_string()
-        };
-
-        assert_eq!(
-            oauth_access_token(&credentials("abc", 200_000), 100_000),
-            Some("abc".to_string())
-        );
-        assert_eq!(
-            oauth_access_token(&credentials("abc", 160_000), 100_000),
-            None
-        );
-        assert_eq!(oauth_access_token(&credentials("", 200_000), 100_000), None);
-        assert_eq!(oauth_access_token("{}", 0), None);
-        assert_eq!(oauth_access_token("not json", 0), None);
-    }
 
     #[test]
     fn claude_command_prints_text_without_tools() {

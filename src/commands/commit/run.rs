@@ -1,4 +1,4 @@
-use crate::ai::Provider;
+use crate::ai::{self, Provider};
 use crate::commands::commit::context::Context;
 use crate::commands::generation::{self, Request};
 use crate::tui;
@@ -26,13 +26,14 @@ pub fn run(provider: Provider) -> anyhow::Result<()> {
     };
     let (generated, elapsed) = tui::timed_spinner("Generating commit message", || {
         generation::generate(
-            provider,
             &generation_context,
             Request {
                 branch: false,
                 commit: true,
                 pull_request: false,
             },
+            |prompt| ai::generate(provider, prompt),
+            git::branch_exists,
         )
     })?;
     let message = generated.commit.expect("generation requires commit");

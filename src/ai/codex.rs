@@ -1,9 +1,12 @@
+mod stream;
+
 use super::{Provider, direct_response_prompt, run};
 use serde_json::{Value, json};
 use std::env;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
+use stream::stream_text;
 
 const MODEL: &str = "gpt-5.6-luna";
 const REASONING_EFFORT: &str = "model_reasoning_effort=\"none\"";
@@ -52,17 +55,6 @@ fn direct(prompt: &str) -> Option<String> {
     (!text.is_empty()).then(|| super::strip_markdown_fence(text.trim()).to_string())
 }
 
-fn stream_text(raw: &str) -> String {
-    raw.lines()
-        .filter_map(|line| line.strip_prefix("data: "))
-        .filter_map(|data| serde_json::from_str::<Value>(data).ok())
-        .filter(|event| {
-            event.get("type").and_then(Value::as_str) == Some("response.output_text.delta")
-        })
-        .filter_map(|event| event.get("delta")?.as_str().map(str::to_string))
-        .collect()
-}
-
 fn auth_path() -> Option<PathBuf> {
     env::var_os("CODEX_HOME")
         .filter(|value| !value.is_empty())
@@ -107,25 +99,8 @@ fn codex_command() -> Command {
 
 #[cfg(test)]
 mod tests {
-    use super::{MODEL, codex_command, stream_text};
+    use super::{MODEL, codex_command};
     use std::ffi::OsStr;
-
-    #[test]
-    fn stream_text_joins_output_deltas_only() {
-        let raw = [
-            "event: response.created",
-            r#"data: {"type":"response.created"}"#,
-            r#"data: {"type":"response.output_text.delta","delta":"{\"branch\""}"#,
-            "data: not json",
-            r#"data: {"type":"response.output_text.delta","delta":":null}"}"#,
-            r#"data: {"type":"response.completed"}"#,
-        ]
-        .join("\n");
-
-        assert_eq!(stream_text(&raw), r#"{"branch":null}"#);
-        assert_eq!(stream_text(""), "");
-    }
-
     #[test]
     fn codex_command_runs_read_only_exec_from_stdin() {
         let command = codex_command();
