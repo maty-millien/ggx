@@ -5,7 +5,7 @@ use std::time::Instant;
 pub fn run(keep_branch: bool, admin: bool) -> anyhow::Result<()> {
     let started = Instant::now();
     git::ensure_clean_worktree()?;
-    let pull_request = github::pull_request(None)?;
+    let pull_request = github::pull_request()?;
 
     tui::step("Pull request found", started.elapsed());
     tui::section("Pull Request");
@@ -26,7 +26,7 @@ pub fn run(keep_branch: bool, admin: bool) -> anyhow::Result<()> {
     }
 
     tui::spinner("Squash merging pull request", || {
-        github::squash(None, keep_branch, admin)
+        github::squash(keep_branch, admin)
     })?;
     tui::success("Squash merged PR", &format!("#{}", pull_request.number));
 

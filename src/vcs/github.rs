@@ -56,10 +56,8 @@ pub fn create_pr(
     Ok(run(&args)?.trim().to_string())
 }
 
-pub fn pull_request(target: Option<&str>) -> anyhow::Result<PullRequest> {
-    let args = pr_view_args(target);
-
-    let output = run(&args)?;
+pub fn pull_request() -> anyhow::Result<PullRequest> {
+    let output = run(&["pr", "view", "--json", PR_JSON_FIELDS])?;
     parse_pull_request(&output)
 }
 
@@ -85,24 +83,15 @@ pub fn open_pull_request(branch: &str) -> anyhow::Result<Option<PullRequest>> {
 }
 
 pub fn merge(keep_branch: bool, admin: bool) -> anyhow::Result<String> {
-    merge_with_strategy(None, "--merge", keep_branch, admin)
+    merge_with_strategy("--merge", keep_branch, admin)
 }
 
-pub fn squash(target: Option<&str>, keep_branch: bool, admin: bool) -> anyhow::Result<String> {
-    merge_with_strategy(target, "--squash", keep_branch, admin)
+pub fn squash(keep_branch: bool, admin: bool) -> anyhow::Result<String> {
+    merge_with_strategy("--squash", keep_branch, admin)
 }
 
-fn merge_with_strategy(
-    target: Option<&str>,
-    strategy: &str,
-    keep_branch: bool,
-    admin: bool,
-) -> anyhow::Result<String> {
-    let mut args = vec!["pr", "merge"];
-    if let Some(target) = target {
-        args.push(target);
-    }
-    args.push(strategy);
+fn merge_with_strategy(strategy: &str, keep_branch: bool, admin: bool) -> anyhow::Result<String> {
+    let mut args = vec!["pr", "merge", strategy];
     if !keep_branch {
         args.push("--delete-branch");
     }
@@ -130,15 +119,6 @@ fn run_output(args: &[&str]) -> std::io::Result<std::process::Output> {
         .args(args)
         .stderr(Stdio::piped())
         .output()
-}
-
-fn pr_view_args(target: Option<&str>) -> Vec<&str> {
-    let mut args = vec!["pr", "view", "--json", PR_JSON_FIELDS];
-    if let Some(target) = target {
-        args.insert(2, target);
-    }
-
-    args
 }
 
 fn optional_pull_request_from_output(
