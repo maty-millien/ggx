@@ -91,7 +91,7 @@ Add `--admin` to `merge` or `squash` when GitHub requires elevated permissions.
 
 It uses:
 
-- `gpt-5.6-luna` with no reasoning effort through Codex
+- `gpt-5.6-luna` with no reasoning effort through Codex, calling its backend directly with your Codex login and needing `curl`
 - `haiku` through Claude
 - the default inline completion engine through GitHub Copilot
 - GitHub CLI for pull requests, merges, and branch cleanup

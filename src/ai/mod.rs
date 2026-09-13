@@ -125,7 +125,7 @@ pub(crate) fn run(
     )
 }
 
-fn direct_response_prompt(prompt: &str) -> String {
+pub(crate) fn direct_response_prompt(prompt: &str) -> String {
     format!("{}{}", DIRECT_RESPONSE_INSTRUCTIONS, prompt)
 }
 
@@ -149,7 +149,7 @@ fn response(
     Ok(stdout)
 }
 
-fn strip_markdown_fence(response: &str) -> &str {
+pub(crate) fn strip_markdown_fence(response: &str) -> &str {
     let Some((opening, rest)) = response.split_once('\n') else {
         return response;
     };

@@ -1,10 +1,74 @@
-use super::{Provider, run};
+use super::{Provider, direct_response_prompt, run};
+use serde_json::{Value, json};
+use std::env;
+use std::fs;
+use std::path::PathBuf;
 use std::process::Command;
 
 const MODEL: &str = "gpt-5.6-luna";
 const REASONING_EFFORT: &str = "model_reasoning_effort=\"none\"";
+const RESPONSES_URL: &str = "https://chatgpt.com/backend-api/codex/responses";
+const INSTRUCTIONS: &str = "You are a git workflow assistant.";
+
 pub fn generate(prompt: &str) -> anyhow::Result<String> {
-    run(Provider::Codex, codex_command(), prompt)
+    // The CLI spends seconds on startup; talk to its backend directly and only
+    // fall back to the CLI when the cached token is missing, expired, or rejected.
+    // The CLI refreshes and persists the token, so the next call is fast again.
+    match direct(prompt) {
+        Some(response) => Ok(response),
+        None => run(Provider::Codex, codex_command(), prompt),
+    }
+}
+
+fn direct(prompt: &str) -> Option<String> {
+    let auth: Value = serde_json::from_str(&fs::read_to_string(auth_path()?).ok()?).ok()?;
+    let tokens = auth.get("tokens")?;
+    let access_token = tokens.get("access_token")?.as_str()?;
+    let account_id = tokens.get("account_id")?.as_str()?;
+    let body = json!({
+        "model": MODEL,
+        "instructions": INSTRUCTIONS,
+        "input": [{"role": "user", "content": [{"type": "input_text", "text": direct_response_prompt(prompt)}]}],
+        "stream": true,
+        "store": false,
+        "reasoning": {"effort": "none"},
+    });
+
+    let output = Command::new("curl")
+        .args(["-sS", "--fail", "--max-time", "60", "--no-buffer"])
+        .args(["-H", &format!("Authorization: Bearer {access_token}")])
+        .args(["-H", &format!("chatgpt-account-id: {account_id}")])
+        .args(["-H", "OpenAI-Beta: responses=experimental"])
+        .args(["-H", "originator: codex_cli_rs"])
+        .args(["-H", "Content-Type: application/json"])
+        .args(["--data-binary", &body.to_string(), RESPONSES_URL])
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+
+    let text = stream_text(&String::from_utf8_lossy(&output.stdout));
+    (!text.is_empty()).then(|| super::strip_markdown_fence(text.trim()).to_string())
+}
+
+fn stream_text(raw: &str) -> String {
+    raw.lines()
+        .filter_map(|line| line.strip_prefix("data: "))
+        .filter_map(|data| serde_json::from_str::<Value>(data).ok())
+        .filter(|event| {
+            event.get("type").and_then(Value::as_str) == Some("response.output_text.delta")
+        })
+        .filter_map(|event| event.get("delta")?.as_str().map(str::to_string))
+        .collect()
+}
+
+fn auth_path() -> Option<PathBuf> {
+    env::var_os("CODEX_HOME")
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
+        .or_else(|| env::var_os("HOME").map(|home| PathBuf::from(home).join(".codex")))
+        .map(|base| base.join("auth.json"))
 }
 
 fn codex_command() -> Command {
