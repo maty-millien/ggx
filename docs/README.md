@@ -15,12 +15,12 @@ curl -fsSL https://github.com/maty-millien/ggx/releases/latest/download/ggx-inst
 ggx setup
 ```
 
-Works on macOS and Linux. You'll need `git`, GitHub CLI (`gh`), and either Codex or Claude.
+Works on macOS and Linux. You'll need `git`, GitHub CLI (`gh`), and Codex, Claude, or GitHub Copilot.
 
 <details>
 <summary>Setup and updates</summary>
 
-Authenticate `gh` and your chosen AI CLI before running `ggx setup`. Your provider choice applies to every repository. Run setup again at any time to switch.
+Authenticate `gh` and your chosen AI CLI before running `ggx setup`. For Copilot, sign in once with the GitHub Copilot CLI or any editor with Copilot; ggx reuses that login and needs `curl`. Your provider choice applies to every repository. Run setup again at any time to switch.
 
 `ggx` checks for stable updates once a day in the background. To update now and see the current version, installed version, and elapsed time, run:
 
@@ -61,7 +61,7 @@ Run `ggx sync` whenever you want to update the default branch and clean safe loc
 
 | I want to… | Run |
 |---|---|
-| Choose Codex or Claude | `ggx setup` |
+| Choose Codex, Claude, or Copilot | `ggx setup` |
 | Start work from pending changes | `ggx branch [prompt]` |
 | Commit and push current changes | `ggx commit` |
 | Open a pull request | `ggx pr [--draft]` |
@@ -93,6 +93,7 @@ It uses:
 
 - `gpt-5.6-luna` with no reasoning effort through Codex
 - `haiku` through Claude
+- the default inline completion engine through GitHub Copilot
 - GitHub CLI for pull requests, merges, and branch cleanup
 
 Syncing and merging require a clean worktree. Pull request creation stops if the current branch already has an open pull request. Closed and merged pull requests do not prevent creating a new one from the same branch.

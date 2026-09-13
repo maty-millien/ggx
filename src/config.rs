@@ -28,6 +28,10 @@ pub fn save(provider: Provider) -> anyhow::Result<()> {
     Ok(())
 }
 
+pub fn sibling(name: &str) -> anyhow::Result<PathBuf> {
+    Ok(path()?.with_file_name(name))
+}
+
 fn path() -> anyhow::Result<PathBuf> {
     path_from(env::var_os("XDG_CONFIG_HOME"), env::var_os("HOME")).ok_or_else(|| {
         anyhow::anyhow!(

@@ -29,18 +29,18 @@ pub fn run() -> anyhow::Result<()> {
 }
 
 fn provider_options(current: Option<Provider>) -> Vec<(&'static str, Option<Provider>)> {
-    let mut providers = match current {
-        Some(Provider::Claude) => vec![
-            ("Claude", Some(Provider::Claude)),
-            ("Codex", Some(Provider::Codex)),
-        ],
-        Some(Provider::Codex) | None => vec![
-            ("Codex", Some(Provider::Codex)),
-            ("Claude", Some(Provider::Claude)),
-        ],
-    };
-    providers.push(("Cancel", None));
-    providers
+    let mut providers = vec![Provider::Codex, Provider::Claude, Provider::Copilot];
+    if let Some(current) = current {
+        providers.retain(|provider| *provider != current);
+        providers.insert(0, current);
+    }
+
+    let mut options = providers
+        .into_iter()
+        .map(|provider| (provider.label(), Some(provider)))
+        .collect::<Vec<_>>();
+    options.push(("Cancel", None));
+    options
 }
 
 fn complete<V, S>(selected: Option<Provider>, mut validate: V, mut save: S) -> anyhow::Result<bool>
@@ -70,6 +70,7 @@ mod tests {
             vec![
                 ("Codex", Some(Provider::Codex)),
                 ("Claude", Some(Provider::Claude)),
+                ("Copilot", Some(Provider::Copilot)),
                 ("Cancel", None)
             ]
         );
@@ -82,6 +83,7 @@ mod tests {
             vec![
                 ("Claude", Some(Provider::Claude)),
                 ("Codex", Some(Provider::Codex)),
+                ("Copilot", Some(Provider::Copilot)),
                 ("Cancel", None)
             ]
         );

@@ -106,7 +106,7 @@ Example output: `feat/refresh-auth-session`
 4. When run from a feature branch with pending changes, generate the commit and PR together.
 5. When run from a clean feature branch, generate only the PR.
 6. Fail fast when there are no changes or an open pull request already exists for the current feature branch. Closed and merged pull requests do not block a new pull request from that branch.
-7. Generate every required artifact in one Codex CLI request, with one retry for invalid output or an existing branch name.
+7. Generate every required artifact in one request to the configured AI provider, with one retry for invalid output or an existing branch name.
 8. Show all generated output and confirm once before creating a branch, committing, pushing, or creating the PR.
 9. Create the PR against the selected base and support draft PRs and `--closes` issue context.
 
@@ -160,8 +160,10 @@ ggx is a fast AI powered git workflow CLI for branches, commits, PRs, sync, and 
 
 ## AI Provider
 
-`ggx setup` requires an interactive terminal and lets the user choose Codex or Claude. It checks that the selected CLI is installed before saving the choice in `$XDG_CONFIG_HOME/ggx/config.json`, or `$HOME/.config/ggx/config.json` when `XDG_CONFIG_HOME` is unset. Running setup again changes the provider for every repository.
+`ggx setup` requires an interactive terminal and lets the user choose Codex, Claude, or Copilot. It checks that the selected CLI is installed, or that Copilot can be reached, before saving the choice in `$XDG_CONFIG_HOME/ggx/config.json`, or `$HOME/.config/ggx/config.json` when `XDG_CONFIG_HOME` is unset. Running setup again changes the provider for every repository.
 
 Every command except setup and version requires a valid provider configuration. Missing or invalid configuration tells the user to run `ggx setup`.
 
 Codex uses `gpt-5.6-luna` with no reasoning effort. Claude uses the `haiku` alias without an effort flag because Haiku does not support configurable effort. Each command requests all of its generated artifacts together. ggx removes one surrounding JSON markdown fence from any provider before parsing and validation.
+
+Copilot uses the same low-latency inline completion API as editor ghost text, with the default `copilot-codex` engine and no model selection. ggx reads the GitHub OAuth token that Copilot clients store in `github-copilot/apps.json` (or the older `hosts.json`) under the user configuration directory, exchanges it for a short-lived Copilot token, and caches that token in `copilot-token.json` next to the ggx configuration until shortly before it expires. Requests go through `curl`. The prompt is the shared generation prompt followed by a `## Response` heading and the opening `{"branch":` of the JSON object, so the completion engine fills in the rest; ggx keeps only the first JSON value from the streamed text.

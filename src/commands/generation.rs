@@ -188,10 +188,14 @@ fn render(context: &Context, request: Request, retry: Option<&str>) -> String {
     } else {
         "Set commit to null."
     };
-    let pull_request_instruction = if request.pull_request {
-        "Set pull_request to an object with title and body strings. The body must be GitHub-flavored Markdown with ## Summary and ## Changes headings. Do not add test plan, risk, or notes sections. Include GitHub closing references for provided issues."
-    } else {
-        "Set pull_request to null."
+    let pull_request_instruction = match (request.pull_request, context.issues.is_empty()) {
+        (false, _) => "Set pull_request to null.",
+        (true, true) => {
+            "Set pull_request to an object with title and body strings. The body must be GitHub-flavored Markdown with ## Summary and ## Changes headings. Do not add test plan, risk, or notes sections. Do not mention or close any issue; none are provided."
+        }
+        (true, false) => {
+            "Set pull_request to an object with title and body strings. The body must be GitHub-flavored Markdown with ## Summary and ## Changes headings. Do not add test plan, risk, or notes sections. Include GitHub closing references only for the issues listed under Issues To Close."
+        }
     };
     let retry = retry.map_or(String::new(), |error| {
         format!(

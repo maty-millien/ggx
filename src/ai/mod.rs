@@ -1,5 +1,6 @@
 mod claude;
 mod codex;
+mod copilot;
 
 use anyhow::Context;
 use std::fmt;
@@ -17,6 +18,7 @@ Return only the requested text and nothing else.
 pub enum Provider {
     Codex,
     Claude,
+    Copilot,
 }
 
 impl Provider {
@@ -24,6 +26,7 @@ impl Provider {
         match self {
             Self::Codex => "codex",
             Self::Claude => "claude",
+            Self::Copilot => "copilot",
         }
     }
 
@@ -31,17 +34,15 @@ impl Provider {
         match self {
             Self::Codex => "Codex",
             Self::Claude => "Claude",
+            Self::Copilot => "Copilot",
         }
-    }
-
-    pub fn executable(self) -> &'static str {
-        self.as_str()
     }
 
     pub fn parse(value: &str) -> Option<Self> {
         match value {
             "codex" => Some(Self::Codex),
             "claude" => Some(Self::Claude),
+            "copilot" => Some(Self::Copilot),
             _ => None,
         }
     }
@@ -57,11 +58,16 @@ pub fn generate(provider: Provider, prompt: &str) -> anyhow::Result<String> {
     match provider {
         Provider::Codex => codex::generate(prompt),
         Provider::Claude => claude::generate(prompt),
+        Provider::Copilot => copilot::generate(prompt),
     }
 }
 
 pub fn validate(provider: Provider) -> anyhow::Result<()> {
-    let output = Command::new(provider.executable())
+    if provider == Provider::Copilot {
+        return copilot::validate();
+    }
+
+    let output = Command::new(provider.as_str())
         .arg("--version")
         .stdin(Stdio::null())
         .stdout(Stdio::null())
@@ -71,7 +77,7 @@ pub fn validate(provider: Provider) -> anyhow::Result<()> {
             format!(
                 "Could not start {} CLI (`{}`). Install it before running `ggx setup`.",
                 provider,
-                provider.executable()
+                provider.as_str()
             )
         })?;
 
@@ -100,7 +106,7 @@ pub(crate) fn run(
         format!(
             "Could not start {} CLI (`{}`). Run `ggx setup` after installing it.",
             provider,
-            provider.executable()
+            provider.as_str()
         )
     })?;
 
