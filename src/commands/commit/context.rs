@@ -334,6 +334,21 @@ mod tests {
     }
 
     #[test]
+    fn budget_diff_gives_unused_budget_to_larger_sections() {
+        let small = "diff --git a/a b/a\n+a\n";
+        let large = format!("diff --git a/b b/b\n{}", "+bbbbbbbbb\n".repeat(10));
+        let diff = format!("{small}{large}");
+
+        let budgeted = budget_diff(diff, 80);
+
+        assert!(budgeted.value.starts_with(small));
+        assert_eq!(budgeted.value.chars().count(), 80);
+        assert!(budgeted.value.chars().count() > small.chars().count() + 40);
+        assert!(budgeted.total_truncated);
+        assert!(budgeted.file_truncated);
+    }
+
+    #[test]
     fn budget_diff_truncates_large_single_file_diff() {
         let diff = format!("diff --git a/a b/a\n{}", "+hello\n".repeat(100));
 
