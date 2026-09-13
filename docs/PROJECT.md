@@ -39,7 +39,7 @@ ggx is a fast Rust git workflow CLI with AI generated branches, commits, and PR 
 
 ## Distribution
 
-Cargo Dist publishes native binaries for Apple Silicon macOS and arm64 and x86_64 Linux with a shell installer. Release builds cache Rust dependencies through the steps in `.github/workflows/dist/build-setup.yml`, and the generated release workflow is hand-edited to drop the unused announce job (`allow-dirty = ["ci"]` in `dist-workspace.toml`). Global installations check for stable updates silently once a day, and `ggx update` runs the updater immediately.
+Cargo Dist publishes native binaries for Apple Silicon macOS and arm64 and x86_64 Linux with a shell installer. The generated release workflow is hand-edited to cache Rust dependencies with `Swatinem/rust-cache` and to drop the unused announce job (`allow-dirty = ["ci"]` in `dist-workspace.toml`). Global installations check for stable updates silently once a day, and `ggx update` runs the updater immediately.
 
 A successful CI run on `main` compares the version in `Cargo.toml` with existing release tags. A new version automatically starts the release workflow, which creates the tag, GitHub Release, binaries, installer, and updater.
 
