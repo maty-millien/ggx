@@ -11,6 +11,7 @@ pub fn run(
     draft: bool,
     closes: Vec<String>,
     requested_base: Option<String>,
+    yes: bool,
 ) -> anyhow::Result<()> {
     let started = Instant::now();
     git::ensure_no_conflicts()?;
@@ -75,7 +76,10 @@ pub fn run(
     tui::section("Body");
     tui::block(&pull_request.body);
 
-    if !tui::confirm(&action_prompt(create_branch, needs_commit, head, &base))? {
+    if !tui::confirm(
+        yes,
+        &action_prompt(create_branch, needs_commit, head, &base),
+    )? {
         tui::aborted();
         return Ok(());
     }

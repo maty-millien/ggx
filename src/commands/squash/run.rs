@@ -3,7 +3,7 @@ use crate::tui;
 use crate::vcs::{git, github};
 use std::time::Instant;
 
-pub fn run(keep_branch: bool, admin: bool) -> anyhow::Result<()> {
+pub fn run(keep_branch: bool, admin: bool, yes: bool) -> anyhow::Result<()> {
     let started = Instant::now();
     git::ensure_clean_worktree()?;
     let pull_request = github::pull_request()?;
@@ -18,10 +18,13 @@ pub fn run(keep_branch: bool, admin: bool) -> anyhow::Result<()> {
         "delete branch"
     };
     let admin_label = if admin { " with admin" } else { "" };
-    if !tui::confirm(&format!(
-        "Squash merge PR #{} into {} and {}{}?",
-        pull_request.number, pull_request.base, cleanup, admin_label
-    ))? {
+    if !tui::confirm(
+        yes,
+        &format!(
+            "Squash merge PR #{} into {} and {}{}?",
+            pull_request.number, pull_request.base, cleanup, admin_label
+        ),
+    )? {
         tui::aborted();
         return Ok(());
     }

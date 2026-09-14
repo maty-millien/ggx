@@ -28,10 +28,10 @@ ggx is a fast Rust git workflow CLI with AI generated branches, commits, and PR 
 | Merge behavior                     | Full land flow                   |
 | Merge strategy                     | Normal merge only                |
 | Squash flow                        | Separate `ggx squash` command    |
-| Destructive actions                | Always ask with an action prompt |
-| Terminal input                     | Suppressed except action prompts |
+| Destructive actions                | Ask unless `-y`/`--yes` is set    |
+| Terminal input                     | Suppressed except action prompts; no input-mode changes with `-y` or `setup --provider` |
 | Action prompt redraw               | Adapts to terminal width changes |
-| Sync cleanup                       | Confirm before deleting          |
+| Sync cleanup                       | Confirm before deleting unless `-y`/`--yes` is set |
 | Protected branch merges            | Use `--admin` when needed        |
 | AI provider scope                   | One selection per user           |
 | Commands before provider setup      | Fail with setup instructions     |
@@ -47,12 +47,20 @@ A successful CI run on `main` compares the version in `Cargo.toml` with existing
 
 | Flag              | Purpose                                                                |
 | ----------------- | ---------------------------------------------------------------------- |
+| `--yes`, `-y`    | Automatically confirm actions on every command except `setup`         |
+| `--provider`      | Select `codex`, `claude`, or `copilot` without a terminal with `setup`   |
 | `--draft`         | Create a draft PR with `ggx pr`                                        |
 | `--closes`        | Include issue context in a generated PR body with `ggx pr`             |
 | `--base`          | Target a specific PR base branch instead of the repository default      |
 | `--keep-branch`   | Do not delete the branch after `ggx merge` or `ggx squash`             |
 | `--admin`         | Pass admin privileges to `gh pr merge` for `ggx merge` or `ggx squash` |
 | `--version`, `-v` | Print the ggx version                                                  |
+
+Flags follow the subcommand, for example `ggx commit -y` or `ggx pr --draft --yes`. Auto-confirm skips all ggx confirmation menus and stdin reads, including sync cleanup, while preserving previews, progress, validation, and error reporting. It also bypasses cursor hiding and terminal input-mode management. `update -y` is accepted for consistency; updating already needs no confirmation. External Git/SSH authentication behavior is unchanged.
+
+`ggx setup --provider codex|claude|copilot` bypasses the provider picker and terminal requirement, validates credentials, and saves only after validation succeeds. Plain `ggx setup` remains interactive. Setup does not accept `-y` or `--yes`.
+
+The command behavior descriptions below describe the default confirmation flow; `-y`/`--yes` automatically accepts each action.
 
 ## Common Workflows
 

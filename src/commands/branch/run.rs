@@ -8,7 +8,7 @@ use crate::tui;
 use crate::vcs::git;
 use std::time::Instant;
 
-pub fn run(provider: Provider, input_prompt: Option<String>) -> anyhow::Result<()> {
+pub fn run(provider: Provider, input_prompt: Option<String>, yes: bool) -> anyhow::Result<()> {
     let started = Instant::now();
     let context = Context::collect(input_prompt)?;
     git::ensure_no_conflicts()?;
@@ -59,7 +59,10 @@ pub fn run(provider: Provider, input_prompt: Option<String>) -> anyhow::Result<(
         tui::section("Commit");
         tui::message(&message);
 
-        if tui::confirm(&format!("Create, checkout, commit, and push {}?", branch))? {
+        if tui::confirm(
+            yes,
+            &format!("Create, checkout, commit, and push {}?", branch),
+        )? {
             tui::spinner("Creating branch", || git::create_branch(&branch))?;
             tui::success("Checked out", &branch);
             tui::rail();
@@ -69,7 +72,7 @@ pub fn run(provider: Provider, input_prompt: Option<String>) -> anyhow::Result<(
         } else {
             tui::aborted();
         }
-    } else if tui::confirm(&format!("Create, checkout, and push {}?", branch))? {
+    } else if tui::confirm(yes, &format!("Create, checkout, and push {}?", branch))? {
         tui::spinner("Creating branch", || git::create_branch(&branch))?;
         tui::success("Checked out", &branch);
         tui::rail();

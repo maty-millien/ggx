@@ -22,6 +22,8 @@ Works on macOS and Linux. You'll need `git`, GitHub CLI (`gh`), and Codex, Claud
 
 Authenticate `gh` and your chosen AI CLI before running `ggx setup`. For Copilot, sign in once with the GitHub Copilot CLI or any editor with Copilot; ggx reuses that login and needs `curl`. Your provider choice applies to every repository. Run setup again at any time to switch.
 
+To configure a provider without an interactive terminal, run `ggx setup --provider codex`, `ggx setup --provider claude`, or `ggx setup --provider copilot`. Setup validates credentials before saving the choice.
+
 `ggx` checks for stable updates once a day in the background. To update now and see the current version, installed version, and elapsed time, run:
 
 ```sh
@@ -61,7 +63,7 @@ Run `ggx sync` whenever you want to update the default branch and clean safe loc
 
 | I want to… | Run |
 |---|---|
-| Choose Codex, Claude, or Copilot | `ggx setup` |
+| Choose Codex, Claude, or Copilot | `ggx setup [--provider codex\|claude\|copilot]` |
 | Start work from pending changes | `ggx branch [prompt]` |
 | Commit and push current changes | `ggx commit` |
 | Open a pull request | `ggx pr [--draft]` |
@@ -69,6 +71,16 @@ Run `ggx sync` whenever you want to update the default branch and clean safe loc
 | Merge the current pull request | `ggx merge` |
 | Squash-merge the current pull request | `ggx squash` |
 | Install the latest stable release | `ggx update` |
+
+Add `-y` or `--yes` after any command except `setup` to automatically confirm its actions without ggx menus or terminal input:
+
+```sh
+ggx commit -y
+ggx pr --draft --yes
+ggx sync -y
+```
+
+This also approves local branch cleanup in `sync`. Previews, progress, and errors remain visible, and normal validation still applies. `update -y` is accepted, though updates already need no confirmation. Git/SSH authentication prompts retain their existing behavior. For unattended setup, use `--provider` instead; setup does not accept `-y` or `--yes`.
 
 <details>
 <summary>Useful pull request and merge options</summary>
@@ -87,7 +99,7 @@ Add `--admin` to `merge` or `squash` when GitHub requires elevated permissions.
 <details>
 <summary>What happens behind the scenes?</summary>
 
-`ggx` reads the current git state and diff, then asks your chosen AI provider, using the login of its CLI, to generate the relevant branch name, commit message, or pull request copy. You review the result before it stages, commits, or pushes anything.
+`ggx` reads the current git state and diff, then asks your chosen AI provider, using the login of its CLI, to generate the relevant branch name, commit message, or pull request copy. By default, you review and confirm the result before it stages, commits, or pushes anything. With `-y`/`--yes`, ggx displays the result and proceeds automatically.
 
 It uses:
 

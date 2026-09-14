@@ -5,7 +5,7 @@ use crate::tui;
 use crate::vcs::{changes, git};
 use std::time::Instant;
 
-pub fn run(provider: Provider) -> anyhow::Result<()> {
+pub fn run(provider: Provider, yes: bool) -> anyhow::Result<()> {
     let started = Instant::now();
     git::ensure_no_conflicts()?;
     let context = Context::collect_for_branch(git::current_branch_name()?)?;
@@ -48,7 +48,7 @@ pub fn run(provider: Provider) -> anyhow::Result<()> {
         git::has_origin_remote(),
     );
 
-    if tui::confirm(&action_prompt(&prepared))? {
+    if tui::confirm(yes, &action_prompt(&prepared))? {
         finish(&prepared)?;
     } else {
         tui::aborted();

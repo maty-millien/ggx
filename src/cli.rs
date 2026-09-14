@@ -9,7 +9,10 @@ pub struct Cli {
 
 #[derive(clap::Subcommand)]
 pub enum Command {
-    Setup,
+    Setup {
+        #[arg(long, value_parser = ["codex", "claude", "copilot"])]
+        provider: Option<String>,
+    },
     Branch {
         prompt: Option<String>,
     },

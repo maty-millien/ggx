@@ -13,8 +13,8 @@ use format::{
     digit_key, path, rail_text, select_line, selected_line, visual_rows, wrap_line,
 };
 
-pub fn session<T>(operation: impl FnOnce() -> T) -> T {
-    let _session = TerminalSession::start();
+pub fn session<T>(interactive: bool, operation: impl FnOnce() -> T) -> T {
+    let _session = interactive.then(TerminalSession::start);
 
     operation()
 }
@@ -75,7 +75,11 @@ pub fn block(text: &str) {
     rail();
 }
 
-pub fn confirm(prompt: &str) -> anyhow::Result<bool> {
+pub fn confirm(yes: bool, prompt: &str) -> anyhow::Result<bool> {
+    if yes {
+        return Ok(true);
+    }
+
     select(
         "What would you like to do?",
         &[

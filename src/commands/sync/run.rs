@@ -3,7 +3,7 @@ use crate::tui;
 use crate::vcs::git;
 use std::time::Instant;
 
-pub fn run() -> anyhow::Result<()> {
+pub fn run(yes: bool) -> anyhow::Result<()> {
     let started = Instant::now();
     git::ensure_clean_worktree()?;
     let starting_branch = git::current_branch_name()?;
@@ -31,11 +31,14 @@ pub fn run() -> anyhow::Result<()> {
         tui::section("Branches");
         tui::block(&candidates.join("\n"));
 
-        if tui::confirm(&format!(
-            "Delete {} local {}?",
-            candidates.len(),
-            branch_label(candidates.len())
-        ))? {
+        if tui::confirm(
+            yes,
+            &format!(
+                "Delete {} local {}?",
+                candidates.len(),
+                branch_label(candidates.len())
+            ),
+        )? {
             for branch in &candidates {
                 tui::spinner("Deleting branch", || git::delete_branch(branch))?;
                 tui::success("Deleted", branch);
