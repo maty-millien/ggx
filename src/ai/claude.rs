@@ -29,7 +29,6 @@ pub fn generate(prompt: &str) -> anyhow::Result<String> {
     let body = json!({
         "model": API_MODEL,
         "max_tokens": MAX_TOKENS,
-        "output_config": {"effort": "none"},
         "system": INSTRUCTIONS,
         "messages": [{"role": "user", "content": direct_response_prompt(prompt)}],
     });
