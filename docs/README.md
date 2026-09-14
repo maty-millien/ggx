@@ -87,12 +87,12 @@ Add `--admin` to `merge` or `squash` when GitHub requires elevated permissions.
 <details>
 <summary>What happens behind the scenes?</summary>
 
-`ggx` reads the current git state and diff, then asks your chosen AI CLI to generate the relevant branch name, commit message, or pull request copy. You review the result before it stages, commits, or pushes anything.
+`ggx` reads the current git state and diff, then asks your chosen AI provider, using the login of its CLI, to generate the relevant branch name, commit message, or pull request copy. You review the result before it stages, commits, or pushes anything.
 
 It uses:
 
 - `gpt-5.6-luna` with no reasoning effort through Codex, calling its backend directly with your Codex login and needing `curl`
-- `haiku` through Claude, calling the Messages API directly with your Claude login (or `ANTHROPIC_AUTH_TOKEN` / `ANTHROPIC_API_KEY`) and needing `curl`
+- `haiku` through Claude, calling the Messages API directly with your Claude login and needing `curl`
 - the default inline completion engine through GitHub Copilot
 - GitHub CLI for pull requests, merges, and branch cleanup
 

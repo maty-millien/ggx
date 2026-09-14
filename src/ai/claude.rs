@@ -1,6 +1,7 @@
 mod parse;
 
-use super::{Provider, direct_response_prompt, run};
+use super::direct_response_prompt;
+use anyhow::Context;
 use parse::{message_text, oauth_access_token};
 use serde_json::{Value, json};
 use std::env;
@@ -9,27 +10,21 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-const MODEL: &str = "haiku";
 const API_MODEL: &str = "claude-haiku-4-5";
 const API_URL: &str = "https://api.anthropic.com";
 const MAX_TOKENS: u32 = 4096;
 const KEYCHAIN_SERVICE: &str = "Claude Code-credentials";
+const NOT_SIGNED_IN: &str =
+    "Claude is not signed in or the token has expired. Run 'claude login' first.";
 // The API only accepts Claude CLI OAuth tokens when the system prompt opens
 // with the CLI's own identity line.
 const INSTRUCTIONS: &str = "You are Claude Code, Anthropic's official CLI for Claude.";
 
 pub fn generate(prompt: &str) -> anyhow::Result<String> {
-    // The CLI spends seconds on startup; talk to the Messages API directly with
-    // the credentials the CLI itself uses and only fall back to the CLI when
-    // they are missing, expired, or rejected. The CLI refreshes and persists
-    // its OAuth token, so the next call is fast again.
-    match direct(prompt) {
-        Some(response) => Ok(response),
-        None => run(Provider::Claude, claude_command(), prompt),
-    }
-}
-
-fn direct(prompt: &str) -> Option<String> {
+    // The CLI spends seconds on startup, so ggx talks to the Messages API
+    // directly with the credentials the CLI itself uses and never falls back
+    // to the CLI. ANTHROPIC_BASE_URL and ANTHROPIC_AUTH_TOKEN are honoured so
+    // that a local proxy configured for the CLI also routes ggx.
     let base_url = env_var("ANTHROPIC_BASE_URL").unwrap_or_else(|| API_URL.to_string());
     let body = json!({
         "model": API_MODEL,
@@ -40,32 +35,37 @@ fn direct(prompt: &str) -> Option<String> {
     });
 
     let mut command = Command::new("curl");
-    command.args(["-sS", "--fail", "--max-time", "60"]);
+    command.args(["-sS", "--fail-with-body", "--max-time", "60"]);
     command.args(["-H", "anthropic-version: 2023-06-01"]);
     command.args(["-H", "Content-Type: application/json"]);
-    for header in auth_headers()? {
+    for header in auth_headers().ok_or_else(|| anyhow::anyhow!(NOT_SIGNED_IN))? {
         command.args(["-H", &header]);
     }
     let output = command
         .args(["--data-binary", &body.to_string()])
         .arg(format!("{base_url}/v1/messages"))
         .output()
-        .ok()?;
+        .context("Could not start curl. Install it before using the Claude provider.")?;
     if !output.status.success() {
-        return None;
+        anyhow::bail!(
+            "Claude request failed: {} {}",
+            String::from_utf8_lossy(&output.stderr).trim(),
+            String::from_utf8_lossy(&output.stdout).trim()
+        );
     }
 
-    let response: Value = serde_json::from_slice(&output.stdout).ok()?;
+    let response: Value =
+        serde_json::from_slice(&output.stdout).context("Claude returned an unexpected response")?;
     let text = message_text(&response);
-    (!text.is_empty()).then(|| super::strip_markdown_fence(text.trim()).to_string())
+    if text.is_empty() {
+        anyhow::bail!("Claude returned an empty response");
+    }
+    Ok(super::strip_markdown_fence(text.trim()).to_string())
 }
 
 fn auth_headers() -> Option<Vec<String>> {
     if let Some(token) = env_var("ANTHROPIC_AUTH_TOKEN") {
         return Some(vec![format!("Authorization: Bearer {token}")]);
-    }
-    if let Some(key) = env_var("ANTHROPIC_API_KEY") {
-        return Some(vec![format!("x-api-key: {key}")]);
     }
 
     let token = oauth_access_token(&credentials()?, now_millis())?;
@@ -107,41 +107,4 @@ fn now_millis() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_or(0, |elapsed| elapsed.as_millis() as u64)
-}
-
-fn claude_command() -> Command {
-    let mut command = Command::new("claude");
-    command.args([
-        "--print",
-        "--output-format",
-        "text",
-        "--safe-mode",
-        "--tools",
-        "",
-        "--no-session-persistence",
-        "--no-chrome",
-        "--model",
-        MODEL,
-    ]);
-    command
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{MODEL, claude_command};
-    use std::ffi::OsStr;
-
-    #[test]
-    fn claude_command_prints_text_without_tools() {
-        let command = claude_command();
-        let args = command
-            .get_args()
-            .map(|arg| arg.to_string_lossy().to_string())
-            .collect::<Vec<_>>();
-
-        assert_eq!(command.get_program(), OsStr::new("claude"));
-        assert!(args.contains(&"--print".to_string()));
-        assert!(args.windows(2).any(|pair| pair == ["--tools", ""]));
-        assert!(args.windows(2).any(|pair| pair == ["--model", MODEL]));
-    }
 }

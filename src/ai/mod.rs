@@ -5,11 +5,9 @@ mod provider;
 mod response;
 
 use anyhow::Context;
-use std::io::Write;
 use std::process::{Command, Stdio};
 
 pub use provider::Provider;
-use response::response;
 pub(crate) use response::{direct_response_prompt, strip_markdown_fence};
 
 pub fn generate(provider: Provider, prompt: &str) -> anyhow::Result<String> {
@@ -48,37 +46,4 @@ pub fn validate(provider: Provider) -> anyhow::Result<()> {
     }
 
     Ok(())
-}
-
-pub(crate) fn run(
-    provider: Provider,
-    mut command: Command,
-    prompt: &str,
-) -> anyhow::Result<String> {
-    command
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
-
-    let mut child = command.spawn().with_context(|| {
-        format!(
-            "Could not start {} CLI (`{}`). Run `ggx setup` after installing it.",
-            provider,
-            provider.as_str()
-        )
-    })?;
-
-    let stdin = child
-        .stdin
-        .as_mut()
-        .ok_or_else(|| anyhow::anyhow!("Failed to open {} CLI stdin", provider))?;
-    stdin.write_all(direct_response_prompt(prompt).as_bytes())?;
-
-    let output = child.wait_with_output()?;
-    response(
-        provider,
-        output.status.success(),
-        &output.stdout,
-        &output.stderr,
-    )
 }
