@@ -126,9 +126,9 @@ Example output: `feat/refresh-auth-session`
 4. Checkout the default base branch and pull with `--ff-only`.
 5. Find local branches already merged into the base branch.
 6. Find local branches whose upstream is gone, unless they report ahead commits.
-7. Exclude the base branch and starting branch from cleanup.
+7. Exclude the base branch and preserve the starting branch unless its upstream is gone and it has no ahead commits.
 8. Confirm before deleting cleanup candidates with `git branch -D`, since squash-merged branches are never "merged" from git's point of view.
-9. Return to the starting branch when sync began somewhere else.
+9. Return to the starting branch when sync began somewhere else, unless that branch was deleted during cleanup; in that case, stay on the default base branch.
 
 ## Update Behavior
 

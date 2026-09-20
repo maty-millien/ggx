@@ -57,7 +57,7 @@ ggx pr --base dev --draft
 ggx merge
 ```
 
-Run `ggx sync` whenever you want to update the default branch and clean safe local branches.
+Run `ggx sync` whenever you want to update the default branch and clean safe local branches. If the checked-out branch was deleted on its remote and has no ahead commits, cleanup deletes it and leaves you on the default branch.
 
 ## Command guide
 

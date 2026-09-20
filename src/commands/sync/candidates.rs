@@ -19,11 +19,17 @@ pub(super) fn cleanup_candidates(
 
     for branch in local_branches {
         if is_gone_without_ahead(&branch.upstream_status) {
-            add_candidate(&mut candidates, &branch.name, base, starting_branch);
+            add_gone_candidate(&mut candidates, &branch.name, base);
         }
     }
 
     candidates.into_iter().collect()
+}
+
+fn add_gone_candidate(candidates: &mut BTreeSet<String>, branch: &str, base: &str) {
+    if branch != base {
+        candidates.insert(branch.to_string());
+    }
 }
 
 fn add_candidate(
@@ -109,7 +115,7 @@ mod tests {
             "current",
         );
 
-        assert_eq!(candidates, ["old"]);
+        assert_eq!(candidates, ["current", "old"]);
     }
 
     #[test]
@@ -119,6 +125,7 @@ mod tests {
             &[
                 branch("old", "[gone]"),
                 branch("work", "[gone, ahead 1]"),
+                branch("topic", "[gone, ahead 2]"),
                 branch("feature", "[ahead 2]"),
             ],
             "main",

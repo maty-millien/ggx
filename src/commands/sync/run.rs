@@ -22,6 +22,8 @@ pub fn run(yes: bool) -> anyhow::Result<()> {
         &base,
         &starting_branch,
     );
+    let starting_branch_is_candidate = candidates.contains(&starting_branch);
+    let mut cleanup_confirmed = false;
 
     tui::step("Sync complete", started.elapsed());
 
@@ -39,6 +41,7 @@ pub fn run(yes: bool) -> anyhow::Result<()> {
                 branch_label(candidates.len())
             ),
         )? {
+            cleanup_confirmed = true;
             for branch in &candidates {
                 tui::spinner("Deleting branch", || git::delete_branch(branch))?;
                 tui::success("Deleted", branch);
@@ -48,7 +51,7 @@ pub fn run(yes: bool) -> anyhow::Result<()> {
         }
     }
 
-    if starting_branch != base {
+    if starting_branch != base && !(cleanup_confirmed && starting_branch_is_candidate) {
         tui::rail();
         tui::spinner("Restoring branch", || git::checkout(&starting_branch))?;
         tui::success("Checked out", &starting_branch);
