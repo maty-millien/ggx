@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use std::process::Command;
 use stream::stream_text;
 
-const MODEL: &str = "gpt-5.6-luna";
+const MODEL: &str = "gpt-6-luna";
 const RESPONSES_URL: &str = "https://chatgpt.com/backend-api/codex/responses";
 const INSTRUCTIONS: &str = "You are a git workflow assistant.";
 const NOT_SIGNED_IN: &str =
