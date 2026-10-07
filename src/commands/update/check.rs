@@ -130,8 +130,8 @@ mod tests {
     };
     use std::ffi::OsString;
     use std::fs;
-    use std::os::unix::fs::PermissionsExt;
     use std::path::{Path, PathBuf};
+    use std::process::Command;
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
     #[test]
@@ -325,8 +325,18 @@ mod tests {
 
     fn script(directory: &Path, name: &str, body: &str) -> PathBuf {
         let path = directory.join(name);
-        fs::write(&path, format!("#!/bin/sh\n{body}\n")).unwrap();
-        fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).unwrap();
+        let source = directory.join(format!("{name}.src"));
+        fs::write(&source, format!("#!/bin/sh\n{body}\n")).unwrap();
+        // Another test thread may fork while this process holds a writable fd
+        // on the script, so executing it fails with "Text file busy" on Linux.
+        // Let a child process create the executable instead.
+        let status = Command::new("install")
+            .args(["-m", "755"])
+            .arg(&source)
+            .arg(&path)
+            .status()
+            .unwrap();
+        assert!(status.success());
         path
     }
 }
