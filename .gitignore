@@ -1,7 +1,5 @@
 # Rust build outputs
 /target/
-debug/
-release/
 
 # Rust tooling
 **/*.rs.bk
@@ -10,18 +8,12 @@ release/
 # Environment and local configuration
 .env
 .env.*
-!.env.example
 
 # Logs
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
 
 # Coverage and profiling
 coverage/
-tarpaulin-report.html
 lcov.info
 *.profraw
 *.profdata

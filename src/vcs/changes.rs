@@ -2,8 +2,8 @@ use crate::tui::{ChangeRow, ChangeStatus};
 
 struct ParsedChange {
     path: String,
-    additions: Option<String>,
-    deletions: Option<String>,
+    additions: String,
+    deletions: String,
 }
 
 pub fn from_files_and_numstat(files: &str, numstat: &str) -> Vec<ChangeRow> {
@@ -21,8 +21,8 @@ pub fn from_files_and_numstat(files: &str, numstat: &str) -> Vec<ChangeRow> {
             ChangeRow {
                 status: change_status(&status),
                 path,
-                additions: stat.and_then(|stat| stat.additions.clone()),
-                deletions: stat.and_then(|stat| stat.deletions.clone()),
+                additions: stat.map(|stat| stat.additions.clone()),
+                deletions: stat.map(|stat| stat.deletions.clone()),
             }
         })
         .collect()
@@ -51,8 +51,8 @@ fn parse_numstat(line: &str) -> Option<ParsedChange> {
 
     Some(ParsedChange {
         path,
-        additions: Some(additions),
-        deletions: Some(deletions),
+        additions,
+        deletions,
     })
 }
 

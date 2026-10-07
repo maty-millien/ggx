@@ -70,51 +70,19 @@ fn collect_committed_changes(
     let diff = git::run(&["diff", "--unified=3", &range])?
         .trim()
         .to_string();
-    let (diff, _) = truncate(diff, MAX_DIFF_CHARS);
+    let diff = diff.chars().take(MAX_DIFF_CHARS).collect();
 
     Ok((files, stat, numstat, commits, diff))
 }
 
 fn collect_issue(reference: String) -> anyhow::Result<Issue> {
     let issue = github::issue(&reference)?;
-    let (body, _) = truncate(issue.body, MAX_ISSUE_BODY_CHARS);
 
     Ok(Issue {
         reference,
         number: issue.number,
         title: issue.title,
-        body,
+        body: issue.body.chars().take(MAX_ISSUE_BODY_CHARS).collect(),
         url: issue.url,
     })
-}
-
-fn truncate(value: String, max_chars: usize) -> (String, bool) {
-    if value.chars().count() <= max_chars {
-        return (value, false);
-    }
-
-    let truncated = value.chars().take(max_chars).collect();
-
-    (truncated, true)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::truncate;
-
-    #[test]
-    fn truncate_keeps_short_value() {
-        let (value, truncated) = truncate("short".to_string(), 10);
-
-        assert_eq!(value, "short");
-        assert!(!truncated);
-    }
-
-    #[test]
-    fn truncate_tracks_char_boundary() {
-        let (value, truncated) = truncate("éclair".to_string(), 2);
-
-        assert_eq!(value, "éc");
-        assert!(truncated);
-    }
 }

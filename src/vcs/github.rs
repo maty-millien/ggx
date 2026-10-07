@@ -1,10 +1,10 @@
 mod parse;
 
-use parse::{json_string, optional_pull_request_from_output, parse_pull_request};
+use parse::{first_pull_request, json_string, parse_pull_request};
 use std::process::{Command, Stdio};
 
 const PR_JSON_FIELDS: &str =
-    "number,title,url,headRefName,baseRefName,mergeStateStatus,reviewDecision,statusCheckRollup";
+    "number,title,url,headRefName,baseRefName,mergeStateStatus,reviewDecision";
 
 pub struct Issue {
     pub number: String,
@@ -65,7 +65,7 @@ pub fn pull_request() -> anyhow::Result<PullRequest> {
 }
 
 pub fn open_pull_request(branch: &str) -> anyhow::Result<Option<PullRequest>> {
-    let args = vec![
+    let output = run(&[
         "pr",
         "list",
         "--head",
@@ -76,24 +76,12 @@ pub fn open_pull_request(branch: &str) -> anyhow::Result<Option<PullRequest>> {
         "1",
         "--json",
         PR_JSON_FIELDS,
-    ];
-    let output =
-        run_output(&args).map_err(|error| anyhow::anyhow!("failed to run gh: {}", error))?;
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let stderr = String::from_utf8_lossy(&output.stderr);
-
-    optional_pull_request_from_output(&args, output.status.success(), &stdout, &stderr)
+    ])?;
+    first_pull_request(&output)
 }
 
-pub fn merge(keep_branch: bool, admin: bool) -> anyhow::Result<String> {
-    merge_with_strategy("--merge", keep_branch, admin)
-}
-
-pub fn squash(keep_branch: bool, admin: bool) -> anyhow::Result<String> {
-    merge_with_strategy("--squash", keep_branch, admin)
-}
-
-fn merge_with_strategy(strategy: &str, keep_branch: bool, admin: bool) -> anyhow::Result<String> {
+pub fn merge(squash: bool, keep_branch: bool, admin: bool) -> anyhow::Result<String> {
+    let strategy = if squash { "--squash" } else { "--merge" };
     let mut args = vec!["pr", "merge", strategy];
     if !keep_branch {
         args.push("--delete-branch");
@@ -106,8 +94,11 @@ fn merge_with_strategy(strategy: &str, keep_branch: bool, admin: bool) -> anyhow
 }
 
 fn run(args: &[&str]) -> anyhow::Result<String> {
-    let output =
-        run_output(args).map_err(|error| anyhow::anyhow!("failed to run gh: {}", error))?;
+    let output = Command::new("gh")
+        .args(args)
+        .stderr(Stdio::piped())
+        .output()
+        .map_err(|error| anyhow::anyhow!("failed to run gh: {}", error))?;
 
     if output.status.success() {
         return Ok(String::from_utf8_lossy(&output.stdout).to_string());
@@ -115,11 +106,4 @@ fn run(args: &[&str]) -> anyhow::Result<String> {
 
     let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
     anyhow::bail!("gh {} failed: {}", args.join(" "), stderr);
-}
-
-fn run_output(args: &[&str]) -> std::io::Result<std::process::Output> {
-    Command::new("gh")
-        .args(args)
-        .stderr(Stdio::piped())
-        .output()
 }

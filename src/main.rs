@@ -6,7 +6,7 @@ mod tui;
 mod vcs;
 
 use crate::cli::{Cli, Command};
-use crate::commands::{branch, commit, merge, pr, setup, squash, sync, update};
+use crate::commands::{branch, commit, merge, pr, setup, sync, update};
 use clap::{CommandFactory, FromArgMatches};
 use std::process::ExitCode;
 
@@ -58,8 +58,8 @@ fn main() -> ExitCode {
                 } => pr::run(provider, draft, closes, base, yes),
                 Command::Sync => sync::run(yes),
                 Command::Update => update::run(),
-                Command::Merge { keep_branch, admin } => merge::run(keep_branch, admin, yes),
-                Command::Squash { keep_branch, admin } => squash::run(keep_branch, admin, yes),
+                Command::Merge { keep_branch, admin } => merge::run(false, keep_branch, admin, yes),
+                Command::Squash { keep_branch, admin } => merge::run(true, keep_branch, admin, yes),
             }
         }
         None => unreachable!("clap requires a subcommand unless --version is set"),

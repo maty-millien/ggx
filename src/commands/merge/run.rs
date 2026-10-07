@@ -3,7 +3,7 @@ use crate::tui;
 use crate::vcs::{git, github};
 use std::time::Instant;
 
-pub fn run(keep_branch: bool, admin: bool, yes: bool) -> anyhow::Result<()> {
+pub fn run(squash: bool, keep_branch: bool, admin: bool, yes: bool) -> anyhow::Result<()> {
     let started = Instant::now();
     git::ensure_clean_worktree()?;
     let pull_request = github::pull_request()?;
@@ -18,19 +18,25 @@ pub fn run(keep_branch: bool, admin: bool, yes: bool) -> anyhow::Result<()> {
         "delete branch"
     };
     let admin_label = if admin { " with admin" } else { "" };
+    let action = if squash { "Squash merge" } else { "Merge" };
     if !tui::confirm(
         yes,
         &format!(
-            "Merge PR #{} into {} and {}{}?",
-            pull_request.number, pull_request.base, cleanup, admin_label
+            "{} PR #{} into {} and {}{}?",
+            action, pull_request.number, pull_request.base, cleanup, admin_label
         ),
     )? {
         tui::aborted();
         return Ok(());
     }
 
-    tui::spinner("Merging pull request", || github::merge(keep_branch, admin))?;
-    tui::success("Merged PR", &format!("#{}", pull_request.number));
+    let (progress, done) = if squash {
+        ("Squash merging pull request", "Squash merged PR")
+    } else {
+        ("Merging pull request", "Merged PR")
+    };
+    tui::spinner(progress, || github::merge(squash, keep_branch, admin))?;
+    tui::success(done, &format!("#{}", pull_request.number));
 
     tui::rail();
     tui::spinner("Syncing base branch", || {

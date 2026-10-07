@@ -1,7 +1,6 @@
 use console::{Key, Term, style};
 use indicatif::{ProgressBar, ProgressStyle};
 use std::io::{self, IsTerminal, Read};
-#[cfg(unix)]
 use std::os::fd::{AsRawFd, RawFd};
 use std::time::{Duration, Instant};
 
@@ -258,7 +257,6 @@ fn read_select_key() -> anyhow::Result<SelectKey> {
 
 struct TerminalSession {
     term: Option<Term>,
-    #[cfg(unix)]
     _input: Option<InputModeGuard>,
 }
 
@@ -268,7 +266,6 @@ impl TerminalSession {
 
         Self {
             term,
-            #[cfg(unix)]
             _input: InputModeGuard::disable_echo(),
         }
     }
@@ -292,7 +289,6 @@ fn hide_cursor() -> Option<Term> {
     Some(term)
 }
 
-#[cfg(unix)]
 fn flush_pending_input() {
     let stdin = io::stdin();
     if stdin.is_terminal() {
@@ -302,16 +298,11 @@ fn flush_pending_input() {
     }
 }
 
-#[cfg(not(unix))]
-fn flush_pending_input() {}
-
-#[cfg(unix)]
 struct InputModeGuard {
     fd: RawFd,
     original: libc::termios,
 }
 
-#[cfg(unix)]
 impl InputModeGuard {
     fn disable_echo() -> Option<Self> {
         let stdin = io::stdin();
@@ -337,7 +328,6 @@ impl InputModeGuard {
     }
 }
 
-#[cfg(unix)]
 impl Drop for InputModeGuard {
     fn drop(&mut self) {
         unsafe {
