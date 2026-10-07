@@ -1,29 +1,19 @@
 # AGENTS.md
 
-This project is `ggx`, a Rust CLI for fast AI-powered git workflows. The main code lives in `src/`, user-facing docs are in `docs/`, and helper scripts are in `scripts/`.
-
-Always keep documentation up to date as part of any change or implementation plan.
+`ggx` is a Rust CLI for AI-powered git workflows. Code is in `src/`, docs in `docs/`, scripts in `scripts/`. Keep docs up to date with every change.
 
 ## Tests
 
-Tests live in `#[cfg(test)]` modules next to the code. When you add or change behavior, add or update tests for it.
+Tests are end-to-end only, in `tests/e2e/`; don't add `#[cfg(test)]` modules. Each test runs the `ggx` binary in a temporary home with a real git repo and a local bare `origin`. `gh`, `curl`, `codex`, `claude` and `security` are fake scripts on `PATH` that replay responses queued with `Env::respond` (or `Env::reply` for Codex) and record their arguments.
 
-The code is split so that coverage means something: logic lives in pure files (`validation.rs`, `context/diff.rs`, `generation.rs`, `tui/format.rs`, `*/parse.rs`, `*/summary.rs`, `sync/candidates.rs`, `setup/select.rs`, `update/check.rs`, `config/file.rs`, `vcs/changes.rs`), and the files matched by `IO_FILES` in `scripts/ci.sh` only orchestrate git, gh, curl, the provider CLIs, or the terminal. `scripts/ci.sh` requires 95% line coverage on the pure files; a whole untested branch fails it, a stray closing brace or an uncalled test closure does not. When you add logic, put it in a pure file, or extract it into one, so it is measured. Do not add abstractions to the I/O files just to make them testable.
+For every behavior change, add or update a test asserting what the user sees: stdout, the exact stderr error, the git state, and the requests sent to `gh` and the providers. Answer menus through stdin (`y`, `n`, `q`, a digit, Enter), or pass `-y`. Leave terminal-only code (arrow keys, echo handling, interactive `ggx setup`) untested.
 
-Never fight the coverage tool. If a line stays red because of how llvm-cov counts rather than because of a missing test (an implicit else brace, a closure a test deliberately never calls, a generic function instantiated per test, a defensive branch that cannot happen, an I/O error path), leave it red. Do not rewrite production code, replace generics with `dyn`, remove defensive branches, or contort tests to move that line. The 5% margin exists for exactly those lines. Coverage needs `cargo install cargo-llvm-cov` and `rustup component add llvm-tools-preview`.
+`scripts/ci.sh` lists uncovered lines, with no threshold. Check them in the files you touched: each one is either a missing test or dead code to remove. Ignore lines red only because of how llvm-cov counts or because a test can't trigger them, and never contort code or tests to cover them. Coverage needs `cargo-llvm-cov` and `llvm-tools-preview`.
 
-Write tests that pin down real behavior: the pure logic behind each command (parsing, validation, prompt rendering, formatting) and each error branch with its exact message. Do not write tests that:
+Don't write tests that check a removed feature is gone, repeat a covered case, exercise clap, serde or std, or need the network, a real terminal or real accounts.
 
-- check that a removed feature or argument is still gone;
-- copy the implementation into the test (for example asserting a full argument list constant by constant);
-- repeat a case already covered through a different input;
-- exercise clap, serde, or the standard library instead of this project's logic;
-- need a real terminal, network, or the `git`, `gh`, `curl`, or provider CLIs.
-
-After any code or documentation modification, run exactly:
+After making changes run:
 
 ```sh
 scripts/ci.sh
 ```
-
-Do not run any other build, test, lint, format, or check command unless the user explicitly asks for it.

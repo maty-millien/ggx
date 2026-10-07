@@ -21,25 +21,3 @@ pub(crate) fn strip_markdown_fence(response: &str) -> &str {
         .map(str::trim)
         .unwrap_or(response)
 }
-
-#[cfg(test)]
-mod tests {
-    use super::{direct_response_prompt, strip_markdown_fence};
-
-    #[test]
-    fn prefixes_generation_prompt_with_direct_response_instructions() {
-        assert_eq!(
-            direct_response_prompt("name a branch"),
-            "Do not invoke tools.\nDo not inspect files.\nDo not run commands.\nReturn only the requested text and nothing else.\n\nname a branch"
-        );
-    }
-
-    #[test]
-    fn strip_markdown_fence_handles_fence_variants() {
-        assert_eq!(strip_markdown_fence("```\nplain\n```"), "plain");
-        assert_eq!(strip_markdown_fence("```JSON\n{}\n```"), "{}");
-        assert_eq!(strip_markdown_fence("no fence"), "no fence");
-        assert_eq!(strip_markdown_fence("```rust\nfn\n```"), "```rust\nfn\n```");
-        assert_eq!(strip_markdown_fence("```\nunclosed"), "```\nunclosed");
-    }
-}

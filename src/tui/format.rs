@@ -15,10 +15,6 @@ pub(super) fn change_status(status: ChangeStatus) -> console::StyledObject<&'sta
 }
 
 pub(super) fn path(path: &str) -> String {
-    if path.ends_with('/') {
-        return style(path).bold().to_string();
-    }
-
     let Some((dir, file)) = path.rsplit_once('/') else {
         return style(path).bold().to_string();
     };
@@ -50,7 +46,7 @@ pub(super) fn commit_message(message: &str) -> String {
     format!("{}:{}", commit_type(kind), style(rest).white())
 }
 
-pub(super) fn commit_type(kind: &str) -> String {
+fn commit_type(kind: &str) -> String {
     let Some((name, scope)) = kind.split_once('(') else {
         return style(kind).green().bold().to_string();
     };
@@ -59,6 +55,10 @@ pub(super) fn commit_type(kind: &str) -> String {
 }
 
 pub(super) fn wrap_line(line: &str, width: usize) -> Vec<String> {
+    if line.chars().count() <= width {
+        return vec![line.to_string()];
+    }
+
     let mut lines = Vec::new();
     let mut current = String::new();
     let indent = line
@@ -103,7 +103,7 @@ pub(super) fn wrap_line(line: &str, width: usize) -> Vec<String> {
     lines
 }
 
-pub(super) fn split_word(word: &str, width: usize) -> Vec<String> {
+fn split_word(word: &str, width: usize) -> Vec<String> {
     let mut parts = Vec::new();
     let mut current = String::new();
 
@@ -157,7 +157,7 @@ pub(super) fn digit_key(character: char) -> SelectKey {
         .map_or(SelectKey::Ignore, SelectKey::Index)
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy)]
 pub enum ChangeStatus {
     Added,
     Modified,
@@ -184,7 +184,6 @@ impl<'a, T> Choice<'a, T> {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum SelectKey {
     Confirm,
     Cancel,
@@ -192,140 +191,4 @@ pub(super) enum SelectKey {
     Previous,
     Index(usize),
     Ignore,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{
-        ChangeStatus, Choice, addition, cancel_choice, change_status, commit_message,
-        confirm_label, deletion, digit_key, path, select_line, selected_line, visual_rows,
-        wrap_line,
-    };
-
-    fn disable_colors() {
-        console::set_colors_enabled(false);
-    }
-
-    #[test]
-    fn change_status_maps_each_status_to_a_marker() {
-        disable_colors();
-
-        assert_eq!(change_status(ChangeStatus::Added).to_string(), "A");
-        assert_eq!(change_status(ChangeStatus::Modified).to_string(), "M");
-        assert_eq!(change_status(ChangeStatus::Deleted).to_string(), "D");
-        assert_eq!(change_status(ChangeStatus::Renamed).to_string(), "R");
-        assert_eq!(change_status(ChangeStatus::Unknown).to_string(), "?");
-    }
-
-    #[test]
-    fn path_formats_plain_file_and_nested_path() {
-        disable_colors();
-
-        assert_eq!(path("README.md"), "README.md");
-        assert_eq!(path("src/main.rs"), "src/main.rs");
-        assert_eq!(path("src/"), "src/");
-    }
-
-    #[test]
-    fn addition_suppresses_empty_zero_and_binary_values() {
-        disable_colors();
-
-        assert_eq!(addition(None), "");
-        assert_eq!(addition(Some("0")), "");
-        assert_eq!(addition(Some("-")), "");
-        assert_eq!(addition(Some("3")), " +3");
-    }
-
-    #[test]
-    fn deletion_suppresses_empty_zero_and_binary_values() {
-        disable_colors();
-
-        assert_eq!(deletion(None), "");
-        assert_eq!(deletion(Some("0")), "");
-        assert_eq!(deletion(Some("-")), "");
-        assert_eq!(deletion(Some("2")), " -2");
-    }
-
-    #[test]
-    fn commit_message_formats_conventional_type_and_falls_back() {
-        disable_colors();
-
-        assert_eq!(
-            commit_message("feat(cli): add command"),
-            "feat(cli): add command"
-        );
-        assert_eq!(commit_message("feat: add command"), "feat: add command");
-        assert_eq!(commit_message("plain message"), "plain message");
-    }
-
-    #[test]
-    fn wrap_line_keeps_short_and_empty_lines() {
-        assert_eq!(wrap_line("one two", 10), vec!["one two"]);
-        assert_eq!(wrap_line("", 10), vec![""]);
-        assert_eq!(wrap_line("   ", 10), vec!["   "]);
-    }
-
-    #[test]
-    fn wrap_line_breaks_between_words() {
-        assert_eq!(wrap_line("one two three", 7), vec!["one two", "three"]);
-    }
-
-    #[test]
-    fn wrap_line_wraps_long_words() {
-        assert_eq!(wrap_line("abcdefgh", 3), vec!["abc", "def", "gh"]);
-        assert_eq!(wrap_line("ab cdefgh", 3), vec!["ab", "cde", "fgh"]);
-    }
-
-    #[test]
-    fn wrap_line_preserves_indentation() {
-        assert_eq!(
-            wrap_line("  one two three", 7),
-            vec!["  one", "  two", "  three"]
-        );
-    }
-
-    #[test]
-    fn visual_rows_counts_wrapped_terminal_rows() {
-        assert_eq!(visual_rows("", 10), 1);
-        assert_eq!(visual_rows("abcdefghij", 10), 1);
-        assert_eq!(visual_rows("abcdefghijk", 10), 2);
-        assert_eq!(visual_rows("\x1b[1mabc\x1b[0m", 3), 1);
-    }
-
-    #[test]
-    fn select_line_marks_selected_and_unselected_choices() {
-        disable_colors();
-
-        assert_eq!(select_line("Commit", true), "  ● Commit");
-        assert_eq!(select_line("Cancel", false), "  ○ Cancel");
-    }
-
-    #[test]
-    fn selected_line_uses_rail_and_muted_choice() {
-        disable_colors();
-
-        assert_eq!(selected_line("Cancel"), "│ Cancel");
-    }
-
-    #[test]
-    fn confirm_label_removes_trailing_question_mark() {
-        assert_eq!(confirm_label("Commit and push?"), "Commit and push");
-        assert_eq!(confirm_label("Commit and push"), "Commit and push");
-    }
-
-    #[test]
-    fn cancel_choice_finds_case_insensitive_cancel_label() {
-        let choices = [Choice::new("Run", 1), Choice::new("cancel", 2)];
-
-        assert_eq!(cancel_choice(&choices), Some(1));
-        assert_eq!(cancel_choice(&choices[..1]), None);
-    }
-
-    #[test]
-    fn digit_key_uses_one_based_indices() {
-        assert_eq!(digit_key('1'), super::SelectKey::Index(0));
-        assert_eq!(digit_key('3'), super::SelectKey::Index(2));
-        assert_eq!(digit_key('0'), super::SelectKey::Ignore);
-        assert_eq!(digit_key('x'), super::SelectKey::Ignore);
-    }
 }

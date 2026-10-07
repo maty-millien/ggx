@@ -18,7 +18,7 @@ pub fn start_automatic() {
     };
 
     let updater = executable.with_file_name("ggx-update");
-    let _ = start_automatic_with(
+    start_automatic_with(
         &updater,
         &marker,
         SystemTime::now(),

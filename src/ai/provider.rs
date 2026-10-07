@@ -1,6 +1,6 @@
 use std::fmt;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum Provider {
     Codex,
     Claude,
@@ -37,20 +37,5 @@ impl Provider {
 impl fmt::Display for Provider {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(self.label())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::Provider;
-
-    #[test]
-    fn provider_names_round_trip() {
-        for provider in [Provider::Codex, Provider::Claude, Provider::Copilot] {
-            assert_eq!(Provider::parse(provider.as_str()), Some(provider));
-            assert_eq!(provider.to_string(), provider.label());
-        }
-        assert_eq!(Provider::parse("other"), None);
-        assert_eq!(Provider::parse("Codex"), None);
     }
 }
