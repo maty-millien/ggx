@@ -10,7 +10,7 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-const API_MODEL: &str = "claude-haiku-4-5";
+const API_MODEL: &str = "claude-haiku-5-5";
 const API_URL: &str = "https://api.anthropic.com";
 const MAX_TOKENS: u32 = 4096;
 const KEYCHAIN_SERVICE: &str = "Claude Code-credentials";
