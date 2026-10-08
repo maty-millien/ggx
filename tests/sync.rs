@@ -1,4 +1,4 @@
-use crate::support::Env;
+use crate::Env;
 
 fn gone_branch(env: &Env, name: &str) {
     env.git(&["checkout", "-b", name, "main"]);

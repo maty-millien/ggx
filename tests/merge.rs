@@ -1,4 +1,4 @@
-use crate::support::Env;
+use crate::Env;
 use serde_json::json;
 
 fn pull_request(number: u32, title: &str, merge_state: &str, review: &str) -> String {

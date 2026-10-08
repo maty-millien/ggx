@@ -7,6 +7,11 @@ repository = "https://github.com/maty-millien/ggx"
 homepage = "https://github.com/maty-millien/ggx"
 license = "MIT"
 readme = "docs/README.md"
+autotests = false
+
+[[test]]
+name = "e2e"
+path = "tests/main.rs"
 
 [dependencies]
 clap = { version = "4.6.7", features = ["derive"] }

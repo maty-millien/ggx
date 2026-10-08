@@ -1,4 +1,4 @@
-use crate::support::{Env, VERSION};
+use crate::{Env, VERSION};
 use std::fs;
 
 #[test]

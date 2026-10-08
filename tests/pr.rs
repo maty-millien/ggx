@@ -1,4 +1,4 @@
-use crate::support::{Env, generated, section};
+use crate::{Env, generated, section};
 use serde_json::json;
 
 const BODY: &str = "## Summary\n\nAdds lib.\n\n## Changes\n\n- lib.rs";

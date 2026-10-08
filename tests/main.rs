@@ -1,3 +1,13 @@
+mod branch;
+mod cli;
+mod commit;
+mod merge;
+mod pr;
+mod providers;
+mod setup;
+mod sync;
+mod update;
+
 use serde_json::{Value, json};
 use std::fs;
 use std::io::Write;

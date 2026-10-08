@@ -1,4 +1,4 @@
-use crate::support::{Env, VERSION};
+use crate::{Env, VERSION};
 use std::fs::{self, File};
 use std::path::{Path, PathBuf};
 use std::thread;
@@ -17,7 +17,7 @@ fn install(env: &Env, updater: &str) -> PathBuf {
     executable
 }
 
-fn update(env: &Env, executable: &Path, replacement: &str) -> crate::support::Run {
+fn update(env: &Env, executable: &Path, replacement: &str) -> crate::Run {
     let mut command = env.command_for(executable, &["update"]);
     command.env("GGX_REPLACEMENT", replacement);
     env.output(command, "")

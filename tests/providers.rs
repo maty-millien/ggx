@@ -1,5 +1,5 @@
 use crate::setup::{copilot_token, sign_in_to_copilot};
-use crate::support::{Env, generated, has_header, request_body};
+use crate::{Env, generated, has_header, request_body};
 use serde_json::{Value, json};
 use std::fs;
 use std::time::{SystemTime, UNIX_EPOCH};
