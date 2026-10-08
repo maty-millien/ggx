@@ -235,7 +235,7 @@ fn reports_gh_failures() {
     env.respond_with("gh", "", "HTTP 401: Bad credentials\n", 1);
 
     env.run(&["pr", "-y"]).failure(
-        "gh pr list --head feature --state open --limit 1 --json number,title,url,headRefName,baseRefName,mergeStateStatus,reviewDecision failed: HTTP 401: Bad credentials",
+        "gh pr list --head feature --state open --limit 1 --json url failed: HTTP 401: Bad credentials",
     );
 }
 

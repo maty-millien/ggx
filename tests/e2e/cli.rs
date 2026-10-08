@@ -100,15 +100,3 @@ fn ignores_an_empty_xdg_config_home() {
         run.stderr
     );
 }
-
-#[test]
-fn setup_does_not_accept_yes() {
-    let run = Env::empty().run(&["setup", "-y"]);
-
-    assert_eq!(run.code, 2);
-    assert!(
-        run.stderr.contains("unexpected argument '-y'"),
-        "{}",
-        run.stderr
-    );
-}

@@ -1,14 +1,9 @@
-mod parse;
-
-use super::direct_response_prompt;
+use super::{Provider, curl, now_secs};
+use crate::config;
 use anyhow::Context;
-use parse::{message_text, oauth_access_token};
 use serde_json::{Value, json};
-use std::env;
-use std::fs;
-use std::path::PathBuf;
 use std::process::Command;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::{env, fs};
 
 const API_MODEL: &str = "claude-haiku-5-5";
 const API_URL: &str = "https://api.anthropic.com";
@@ -26,40 +21,34 @@ pub fn generate(prompt: &str) -> anyhow::Result<String> {
     // to the CLI. ANTHROPIC_BASE_URL and ANTHROPIC_AUTH_TOKEN are honoured so
     // that a local proxy configured for the CLI also routes ggx.
     let base_url = env_var("ANTHROPIC_BASE_URL").unwrap_or_else(|| API_URL.to_string());
+    let url = format!("{base_url}/v1/messages");
     let body = json!({
         "model": API_MODEL,
         "max_tokens": MAX_TOKENS,
         "system": INSTRUCTIONS,
-        "messages": [{"role": "user", "content": direct_response_prompt(prompt)}],
-    });
+        "messages": [{"role": "user", "content": prompt}],
+    })
+    .to_string();
+    let headers = auth_headers().context(NOT_SIGNED_IN)?;
 
-    let mut command = Command::new("curl");
-    command.args(["-sS", "--fail-with-body", "--max-time", "60"]);
-    command.args(["-H", "anthropic-version: 2023-06-01"]);
-    command.args(["-H", "Content-Type: application/json"]);
-    for header in auth_headers().ok_or_else(|| anyhow::anyhow!(NOT_SIGNED_IN))? {
-        command.args(["-H", &header]);
-    }
-    let output = command
-        .args(["--data-binary", &body.to_string()])
-        .arg(format!("{base_url}/v1/messages"))
-        .output()
-        .context("Could not start curl. Install it before using the Claude provider.")?;
-    if !output.status.success() {
-        anyhow::bail!(
-            "Claude request failed: {} {}",
-            String::from_utf8_lossy(&output.stderr).trim(),
-            String::from_utf8_lossy(&output.stdout).trim()
-        );
-    }
+    let mut args = vec![
+        "-H",
+        "anthropic-version: 2023-06-01",
+        "-H",
+        "Content-Type: application/json",
+    ];
+    args.extend(headers.iter().flat_map(|header| ["-H", header.as_str()]));
+    args.extend(["--data-binary", &body, &url]);
 
-    let response: Value =
-        serde_json::from_slice(&output.stdout).context("Claude returned an unexpected response")?;
-    let text = message_text(&response);
-    if text.is_empty() {
-        anyhow::bail!("Claude returned an empty response");
-    }
-    Ok(super::strip_markdown_fence(text.trim()).to_string())
+    let response: Value = serde_json::from_str(&curl(Provider::Claude, &args)?)
+        .context("Claude returned an unexpected response")?;
+    Ok(response["content"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|block| block["type"] == "text")
+        .filter_map(|block| block["text"].as_str())
+        .collect())
 }
 
 fn auth_headers() -> Option<Vec<String>> {
@@ -67,15 +56,27 @@ fn auth_headers() -> Option<Vec<String>> {
         return Some(vec![format!("Authorization: Bearer {token}")]);
     }
 
-    let token = oauth_access_token(&credentials()?, now_millis())?;
+    let credentials: Value = serde_json::from_str(&credentials()?).ok()?;
+    let oauth = &credentials["claudeAiOauth"];
+    // Skip tokens that expire within a minute.
+    if oauth["expiresAt"].as_u64()? <= (now_secs() + 60) * 1000 {
+        return None;
+    }
+
+    let token = oauth["accessToken"]
+        .as_str()
+        .filter(|token| !token.is_empty())?;
     Some(vec![
         format!("Authorization: Bearer {token}"),
         "anthropic-beta: oauth-2025-04-20".to_string(),
     ])
 }
 
+/// The CLI's credentials file, or the macOS keychain entry the CLI uses instead.
 fn credentials() -> Option<String> {
-    if let Ok(contents) = fs::read_to_string(config_directory()?.join(".credentials.json")) {
+    if let Some(contents) = config::dir("CLAUDE_CONFIG_DIR", ".claude")
+        .and_then(|dir| fs::read_to_string(dir.join(".credentials.json")).ok())
+    {
         return Some(contents);
     }
     if !cfg!(target_os = "macos") {
@@ -92,18 +93,6 @@ fn credentials() -> Option<String> {
         .then(|| String::from_utf8_lossy(&output.stdout).trim().to_string())
 }
 
-fn config_directory() -> Option<PathBuf> {
-    env_var("CLAUDE_CONFIG_DIR")
-        .map(PathBuf::from)
-        .or_else(|| env::var_os("HOME").map(|home| PathBuf::from(home).join(".claude")))
-}
-
 fn env_var(name: &str) -> Option<String> {
     env::var(name).ok().filter(|value| !value.is_empty())
-}
-
-fn now_millis() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_or(0, |elapsed| elapsed.as_millis() as u64)
 }

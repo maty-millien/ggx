@@ -1,16 +1,36 @@
-use console::{Key, Term, style};
+use console::{Color, Key, Term, style};
 use indicatif::{ProgressBar, ProgressStyle};
 use std::io::{self, IsTerminal, Read};
 use std::os::fd::{AsRawFd, RawFd};
 use std::time::{Duration, Instant};
 
-mod format;
+/// One line of `git diff --name-status` with its `--numstat` counts.
+pub struct ChangeRow {
+    pub status: char,
+    pub path: String,
+    pub additions: String,
+    pub deletions: String,
+}
 
-pub use format::{ChangeRow, ChangeStatus, Choice};
-use format::{
-    SelectKey, addition, cancel_choice, change_status, commit_message, confirm_label, deletion,
-    digit_key, path, rail_text, select_line, selected_line, visual_rows, wrap_line,
-};
+pub struct Choice<'a, T> {
+    label: &'a str,
+    value: T,
+}
+
+impl<'a, T> Choice<'a, T> {
+    pub fn new(label: &'a str, value: T) -> Self {
+        Self { label, value }
+    }
+}
+
+enum SelectKey {
+    Confirm,
+    Cancel,
+    Next,
+    Previous,
+    Index(usize),
+    Ignore,
+}
 
 pub fn session<T>(interactive: bool, operation: impl FnOnce() -> T) -> T {
     let _session = interactive.then(TerminalSession::start);
@@ -33,14 +53,26 @@ pub fn section(title: &str) {
 }
 
 pub fn change_rows(rows: &[ChangeRow]) {
+    section("Changes");
     for row in rows {
+        let status = match row.status {
+            'A' => style('A').green(),
+            'M' => style('M').yellow(),
+            'D' => style('D').red(),
+            'R' => style('R').cyan(),
+            _ => style('?').dim(),
+        };
+        let path = match row.path.rsplit_once('/') {
+            Some((dir, file)) => format!("{}/{}", style(dir).dim(), style(file).bold()),
+            None => style(&row.path).bold().to_string(),
+        };
         println!(
             "{}   {}  {}{}{}",
             rail_text(),
-            change_status(row.status),
-            path(&row.path),
-            addition(row.additions.as_deref()),
-            deletion(row.deletions.as_deref())
+            status,
+            path,
+            count('+', &row.additions, Color::Green),
+            count('-', &row.deletions, Color::Red)
         );
     }
     rail();
@@ -82,15 +114,13 @@ pub fn confirm(yes: bool, prompt: &str) -> anyhow::Result<bool> {
     select(
         "What would you like to do?",
         &[
-            Choice::new(confirm_label(prompt), true),
+            Choice::new(prompt.trim().trim_end_matches('?'), true),
             Choice::new("Cancel", false),
         ],
     )
 }
 
 pub fn select<T: Clone>(prompt: &str, choices: &[Choice<'_, T>]) -> anyhow::Result<T> {
-    anyhow::ensure!(!choices.is_empty(), "select requires at least one choice");
-
     let term = Term::stdout();
     flush_pending_input();
     let mut selected = 0;
@@ -102,28 +132,21 @@ pub fn select<T: Clone>(prompt: &str, choices: &[Choice<'_, T>]) -> anyhow::Resu
 
         match read_select_key()? {
             SelectKey::Confirm => {
-                finish_select(&term, prompt, choices, selected, &rendered)?;
+                finish_select(&term, prompt, choices[selected].label, &rendered)?;
                 return Ok(choices[selected].value.clone());
             }
             SelectKey::Cancel => {
-                if let Some(index) = cancel_choice(choices) {
-                    finish_select(&term, prompt, choices, index, &rendered)?;
-                    return Ok(choices[index].value.clone());
+                if let Some(cancel) = choices
+                    .iter()
+                    .find(|choice| choice.label.eq_ignore_ascii_case("cancel"))
+                {
+                    finish_select(&term, prompt, cancel.label, &rendered)?;
+                    return Ok(cancel.value.clone());
                 }
             }
-            SelectKey::Next => {
-                selected = (selected + 1) % choices.len();
-            }
-            SelectKey::Previous => {
-                selected = if selected == 0 {
-                    choices.len() - 1
-                } else {
-                    selected - 1
-                };
-            }
-            SelectKey::Index(index) if index < choices.len() => {
-                selected = index;
-            }
+            SelectKey::Next => selected = (selected + 1) % choices.len(),
+            SelectKey::Previous => selected = (selected + choices.len() - 1) % choices.len(),
+            SelectKey::Index(index) if index < choices.len() => selected = index,
             SelectKey::Index(_) | SelectKey::Ignore => {}
         }
     }
@@ -181,19 +204,75 @@ pub fn rail() {
     println!("{}", rail_text());
 }
 
+fn rail_text() -> console::StyledObject<&'static str> {
+    style("│").dim()
+}
+
 fn block_width() -> usize {
     let width = Term::stdout().size().1 as usize;
     width.saturating_sub(4).max(20)
 }
 
+/// Hides empty, binary (`-`) and zero counts.
+fn count(sign: char, value: &str, color: Color) -> String {
+    if matches!(value, "" | "-" | "0") {
+        return String::new();
+    }
+    format!(" {}", style(format!("{sign}{value}")).fg(color))
+}
+
+/// Colors the type and scope of a `type(scope): subject` line.
+fn commit_message(message: &str) -> String {
+    let Some((kind, rest)) = message.split_once(':') else {
+        return style(message).green().bold().to_string();
+    };
+    let kind = match kind.split_once('(') {
+        Some((name, scope)) => format!("{}({}", style(name).green().bold(), style(scope).cyan()),
+        None => style(kind).green().bold().to_string(),
+    };
+
+    format!("{kind}:{}", style(rest).white())
+}
+
+/// Wraps on spaces, keeping the line's indent and splitting words longer than the width.
+fn wrap_line(line: &str, width: usize) -> Vec<String> {
+    if line.chars().count() <= width {
+        return vec![line.to_string()];
+    }
+
+    let indent: String = line.chars().take_while(|c| c.is_whitespace()).collect();
+    let width = width.saturating_sub(indent.chars().count()).max(1);
+    let mut lines = Vec::new();
+    let mut current = String::new();
+
+    for word in line.split_whitespace() {
+        for piece in word.chars().collect::<Vec<_>>().chunks(width) {
+            if !current.is_empty() && current.chars().count() + 1 + piece.len() > width {
+                lines.push(format!("{indent}{current}"));
+                current.clear();
+            }
+            if !current.is_empty() {
+                current.push(' ');
+            }
+            current.extend(piece);
+        }
+    }
+
+    if !current.is_empty() || lines.is_empty() {
+        lines.push(format!("{indent}{current}"));
+    }
+    lines
+}
+
 fn render_select<T>(prompt: &str, choices: &[Choice<'_, T>], selected: usize) -> Vec<String> {
     let mut lines = vec![format!("{} {}", style("+").green(), style(prompt).bold())];
-    lines.extend(
-        choices
-            .iter()
-            .enumerate()
-            .map(|(index, choice)| select_line(choice.label, index == selected)),
-    );
+    lines.extend(choices.iter().enumerate().map(|(index, choice)| {
+        if index == selected {
+            format!("  {} {}", style("●").green(), style(choice.label).bold())
+        } else {
+            format!("  {} {}", style("○").dim(), style(choice.label).dim())
+        }
+    }));
 
     for line in &lines {
         println!("{}", line);
@@ -204,25 +283,27 @@ fn render_select<T>(prompt: &str, choices: &[Choice<'_, T>], selected: usize) ->
 
 fn clear_rendered(term: &Term, lines: &[String]) -> anyhow::Result<()> {
     if !lines.is_empty() && io::stdin().is_terminal() {
-        let columns = term.size().1 as usize;
-        let rows = lines.iter().map(|line| visual_rows(line, columns)).sum();
+        let columns = (term.size().1 as usize).max(1);
+        let rows = lines
+            .iter()
+            .map(|line| console::measure_text_width(line).div_ceil(columns).max(1))
+            .sum();
         term.clear_last_lines(rows)?;
     }
 
     Ok(())
 }
 
-fn finish_select<T>(
+fn finish_select(
     term: &Term,
     prompt: &str,
-    choices: &[Choice<'_, T>],
-    selected: usize,
+    label: &str,
     rendered: &[String],
 ) -> anyhow::Result<()> {
     clear_rendered(term, rendered)?;
 
     println!("{} {}", style("+").green(), style(prompt).bold());
-    println!("{}", selected_line(choices[selected].label));
+    println!("{} {}", rail_text(), style(label).dim());
     rail();
 
     Ok(())
@@ -243,8 +324,7 @@ fn read_select_key() -> anyhow::Result<SelectKey> {
     }
 
     let mut buffer = [0; 1];
-    let read = io::stdin().read(&mut buffer)?;
-    if read == 0 {
+    if io::stdin().read(&mut buffer)? == 0 {
         return Ok(SelectKey::Confirm);
     }
 
@@ -255,6 +335,15 @@ fn read_select_key() -> anyhow::Result<SelectKey> {
     })
 }
 
+/// Digits pick a choice, starting at 1.
+fn digit_key(character: char) -> SelectKey {
+    match character.to_digit(10) {
+        Some(digit @ 1..) => SelectKey::Index(digit as usize - 1),
+        _ => SelectKey::Ignore,
+    }
+}
+
+/// Hides the cursor and keystroke echo for the duration of a command.
 struct TerminalSession {
     term: Option<Term>,
     _input: Option<InputModeGuard>,
@@ -262,7 +351,10 @@ struct TerminalSession {
 
 impl TerminalSession {
     fn start() -> Self {
-        let term = hide_cursor();
+        let term = io::stdout()
+            .is_terminal()
+            .then(Term::stdout)
+            .filter(|term| term.hide_cursor().is_ok());
 
         Self {
             term,
@@ -277,16 +369,6 @@ impl Drop for TerminalSession {
             let _ = term.show_cursor();
         }
     }
-}
-
-fn hide_cursor() -> Option<Term> {
-    if !io::stdout().is_terminal() {
-        return None;
-    }
-
-    let term = Term::stdout();
-    term.hide_cursor().ok()?;
-    Some(term)
 }
 
 fn flush_pending_input() {

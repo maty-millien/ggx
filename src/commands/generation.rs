@@ -1,148 +1,98 @@
-use crate::commands::{branch, commit, pr};
+use crate::ai::{self, Provider};
+use crate::commands::{commit::Changes, pr::Committed};
+use crate::{git, github};
+use anyhow::{Context as _, bail, ensure};
 use serde_json::Value;
 
-pub struct Context {
-    pub current_branch: String,
-    pub base: Option<String>,
-    pub user_prompt: Option<String>,
-    pub commits: String,
-    pub committed_files: String,
-    pub committed_stat: String,
-    pub committed_diff: String,
-    pub pending: Option<PendingChanges>,
-    pub issues: Vec<Issue>,
-}
+const BRANCH_TYPES: &[&str] = &["feat", "fix", "refactor", "docs", "test", "chore"];
+const COMMIT_TYPES: &[&str] = &[
+    "feat", "fix", "refactor", "docs", "test", "chore", "build", "ci",
+];
 
-pub struct PendingChanges {
-    pub files: String,
-    pub stat: String,
-    pub numstat: String,
-    pub summary: String,
-    pub readme: Option<String>,
-    pub diff: String,
-    pub notes: Vec<&'static str>,
-}
-
-impl From<&commit::context::Context> for PendingChanges {
-    fn from(context: &commit::context::Context) -> Self {
-        let mut notes = Vec::new();
-        if context.diff_truncated {
-            notes.push("Diff exceeded context budget.");
-        }
-        if context.diff_file_truncated {
-            notes.push("One or more file diffs were truncated.");
-        }
-        if context.readme_truncated {
-            notes.push("README was truncated.");
-        }
-
-        Self {
-            files: context.files.clone(),
-            stat: context.stat.clone(),
-            numstat: context.numstat.clone(),
-            summary: context.summary.clone(),
-            readme: context.readme.clone(),
-            diff: context.diff.clone(),
-            notes,
-        }
-    }
-}
-
-pub struct Issue {
-    pub reference: String,
-    pub number: String,
-    pub title: String,
-    pub body: String,
-    pub url: String,
-}
-
-#[derive(Clone, Copy)]
-pub struct Request {
-    pub branch: bool,
-    pub commit: bool,
-    pub pull_request: bool,
+/// What the model sees. It names a branch when `new_branch` is set, writes a
+/// commit message when there are `pending` changes, and writes a pull
+/// request when there is a `base`.
+#[derive(Default)]
+pub struct Context<'a> {
+    pub current_branch: &'a str,
+    pub new_branch: bool,
+    pub base: Option<&'a str>,
+    pub user_prompt: Option<&'a str>,
+    pub committed: Option<&'a Committed>,
+    pub pending: Option<&'a Changes>,
+    pub issues: &'a [github::Issue],
 }
 
 pub struct Output {
     pub branch: Option<String>,
     pub commit: Option<String>,
-    pub pull_request: Option<pr::validation::PullRequest>,
+    pub pull_request: Option<PullRequest>,
 }
 
-pub fn generate<G, B>(
-    context: &Context,
-    request: Request,
-    mut generate_text: G,
-    mut branch_exists: B,
-) -> anyhow::Result<Output>
-where
-    G: FnMut(&str) -> anyhow::Result<String>,
-    B: FnMut(&str) -> anyhow::Result<bool>,
-{
-    let mut attempt = |retry: Option<&str>| {
-        let prompt = render(context, request, retry);
-        generate_text(&prompt)
-            .and_then(|raw| parse(&raw, request))
-            .and_then(|output| validate_branch(output, request, &mut branch_exists))
-    };
-
-    match attempt(None) {
-        Ok(output) => Ok(output),
-        Err(error) => attempt(Some(&error.to_string())),
-    }
+pub struct PullRequest {
+    pub title: String,
+    pub body: String,
 }
 
-fn validate_branch<B>(
-    output: Output,
-    request: Request,
-    branch_exists: &mut B,
-) -> anyhow::Result<Output>
-where
-    B: FnMut(&str) -> anyhow::Result<bool>,
-{
-    if request.branch {
-        let branch = output.branch.as_deref().expect("parser requires branch");
-        if branch_exists(branch)? {
-            anyhow::bail!("Branch '{}' already exists.", branch);
+/// Asks the model, and asks once more with the reason if the reply is rejected.
+pub fn generate(provider: Provider, context: &Context) -> anyhow::Result<Output> {
+    let attempt = |retry: Option<&str>| -> anyhow::Result<Output> {
+        let output = parse(&ai::generate(provider, &render(context, retry))?, context)?;
+        if let Some(branch) = &output.branch
+            && git::branch_exists(branch)?
+        {
+            bail!("Branch '{branch}' already exists.");
         }
-    }
+        Ok(output)
+    };
 
-    Ok(output)
+    attempt(None).or_else(|error| attempt(Some(&error.to_string())))
 }
 
-fn parse(raw: &str, request: Request) -> anyhow::Result<Output> {
-    let value: Value = serde_json::from_str(raw.trim())?;
+fn parse(raw: &str, context: &Context) -> anyhow::Result<Output> {
+    let value: Value = serde_json::from_str(raw)?;
+    let field = |key: &str| {
+        value[key]
+            .as_str()
+            .with_context(|| format!("Generated output must include {key}."))
+    };
 
-    let branch = if request.branch {
-        let raw = required_string(&value, "branch")?;
-        Some(branch::validation::normalize(raw)?)
+    let branch = if context.new_branch {
+        Some(normalize_branch(field("branch")?)?)
     } else {
         None
     };
 
-    let commit = if request.commit {
-        let message = required_string(&value, "commit")?.trim().to_string();
-        commit::validation::validate(&message)?;
-        Some(message)
+    let commit = if context.pending.is_some() {
+        let message = field("commit")?.trim();
+        validate_commit(message)?;
+        Some(message.to_string())
     } else {
         None
     };
 
-    let pull_request = if request.pull_request {
-        let pull_request = value
-            .get("pull_request")
-            .and_then(Value::as_object)
-            .ok_or_else(|| anyhow::anyhow!("Generated output must include pull_request."))?;
+    let pull_request = if context.base.is_some() {
+        let pull_request = value["pull_request"]
+            .as_object()
+            .context("Generated output must include pull_request.")?;
         let title = pull_request
             .get("title")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("Generated pull request must include a title."))?;
+            .context("Generated pull request must include a title.")?
+            .trim();
         let body = pull_request
             .get("body")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("Generated pull request must include a body."))?;
-
-        Some(pr::validation::PullRequest::from_parts(title, body)?)
+            .context("Generated pull request must include a body.")?
+            .trim();
+        ensure!(
+            !title.is_empty() && !body.is_empty(),
+            "Generated pull request title and body must not be empty."
+        );
+        Some(PullRequest {
+            title: title.to_string(),
+            body: body.to_string(),
+        })
     } else {
         None
     };
@@ -154,60 +104,128 @@ fn parse(raw: &str, request: Request) -> anyhow::Result<Output> {
     })
 }
 
-fn required_string<'a>(value: &'a Value, key: &str) -> anyhow::Result<&'a str> {
-    value
-        .get(key)
-        .and_then(Value::as_str)
-        .ok_or_else(|| anyhow::anyhow!("Generated output must include {}.", key))
+/// Takes the first line outside a code fence, lowercases it and drops
+/// characters git or the type/slug format reject.
+fn normalize_branch(raw: &str) -> anyhow::Result<String> {
+    let line = raw
+        .lines()
+        .map(str::trim)
+        .find(|line| !line.is_empty() && !line.starts_with("```"))
+        .unwrap_or_default();
+    let mut branch = String::new();
+    for character in line.chars().map(|character| character.to_ascii_lowercase()) {
+        if character.is_ascii_alphanumeric()
+            || character == '/'
+            || (character == '-' && !branch.ends_with('-'))
+        {
+            branch.push(character);
+        }
+    }
+
+    let Some((prefix, slug)) = branch.split_once('/') else {
+        bail!("Generated branch name must use type/slug format.");
+    };
+    ensure!(
+        BRANCH_TYPES.contains(&prefix),
+        "Generated branch name used unsupported type '{prefix}'."
+    );
+    ensure!(
+        !slug.contains('/'),
+        "Generated branch name must contain only one slash."
+    );
+    let slug = slug.trim_matches('-');
+    ensure!(
+        !slug.is_empty(),
+        "Generated branch name must include a slug."
+    );
+
+    Ok(format!("{prefix}/{slug}"))
 }
 
-fn render(context: &Context, request: Request, retry: Option<&str>) -> String {
-    let branch_instruction = if request.branch {
-        "Set branch to a concise name using type/short-kebab-name. Allowed types: feat, fix, refactor, docs, test, chore."
-    } else {
-        "Set branch to null."
+fn validate_commit(message: &str) -> anyhow::Result<()> {
+    ensure!(
+        !message.is_empty() && !message.contains(['\n', '\r']),
+        "Commit message must be exactly one line."
+    );
+    // The message is trimmed, so a subject after ": " is never empty.
+    let Some((kind, _)) = message.split_once(": ") else {
+        bail!("Commit message must use 'type(scope): subject'.");
     };
-    let commit_instruction = if request.commit {
-        "Set commit to one Conventional Commit line using type(scope): subject. Allowed types: feat, fix, refactor, docs, test, chore, build, ci."
-    } else {
-        "Set commit to null."
+    let Some((commit_type, scope)) = kind.split_once('(') else {
+        bail!("Commit message must include a non-empty scope.");
     };
-    let pull_request_instruction = match (request.pull_request, context.issues.is_empty()) {
-        (false, _) => "Set pull_request to null.",
-        (true, true) => {
-            "Set pull_request to an object with title and body strings. The body must be GitHub-flavored Markdown with ## Summary and ## Changes headings. Do not add test plan, risk, or notes sections. Do not mention or close any issue; none are provided."
-        }
-        (true, false) => {
-            "Set pull_request to an object with title and body strings. The body must be GitHub-flavored Markdown with ## Summary and ## Changes headings. Do not add test plan, risk, or notes sections. Include GitHub closing references only for the issues listed under Issues To Close."
-        }
+    ensure!(
+        COMMIT_TYPES.contains(&commit_type),
+        "Commit message type '{commit_type}' is not allowed."
+    );
+    let Some(scope) = scope.strip_suffix(')') else {
+        bail!("Commit message scope must close before the colon.");
+    };
+    ensure!(
+        !scope.trim().is_empty() && !scope.contains(['(', ')']),
+        "Commit message scope cannot be empty."
+    );
+
+    Ok(())
+}
+
+fn render(context: &Context, retry: Option<&str>) -> String {
+    let branch_instruction = if context.new_branch {
+        format!(
+            "Set branch to a concise name using type/short-kebab-name. Allowed types: {}.",
+            BRANCH_TYPES.join(", ")
+        )
+    } else {
+        "Set branch to null.".to_string()
+    };
+    let commit_instruction = if context.pending.is_some() {
+        format!(
+            "Set commit to one Conventional Commit line using type(scope): subject. Allowed types: {}.",
+            COMMIT_TYPES.join(", ")
+        )
+    } else {
+        "Set commit to null.".to_string()
+    };
+    let pull_request_instruction = if context.base.is_none() {
+        "Set pull_request to null.".to_string()
+    } else {
+        let issues = if context.issues.is_empty() {
+            "Do not mention or close any issue; none are provided."
+        } else {
+            "Include GitHub closing references only for the issues listed under Issues To Close."
+        };
+        format!(
+            "Set pull_request to an object with title and body strings. The body must be GitHub-flavored Markdown with ## Summary and ## Changes headings. Do not add test plan, risk, or notes sections. {issues}"
+        )
     };
     let retry = retry.map_or(String::new(), |error| {
         format!(
-            "\n## Previous Attempt\n\nThe previous response was rejected: {}\nReturn a corrected, fully regenerated object.\n",
-            error
+            "\n## Previous Attempt\n\nThe previous response was rejected: {error}\nReturn a corrected, fully regenerated object.\n"
         )
     });
-    let base = context.base.as_deref().unwrap_or("Not applicable");
-    let user_prompt = optional_section("User Prompt", context.user_prompt.as_deref());
-    let committed = if context.commits.is_empty() && context.committed_files.is_empty() {
-        String::new()
-    } else {
+    let base = context.base.unwrap_or("Not applicable");
+    let user_prompt = section("User Prompt", context.user_prompt);
+    let committed = context.committed.map_or(String::new(), |committed| {
         format!(
             "\n## Existing Commits\n\n````\n{}\n````\n\n## Committed Changed Files\n\n````\n{}\n````\n\n## Committed Diff Stat\n\n````\n{}\n````\n\n## Committed Diff\n\n````diff\n{}\n````\n",
-            context.commits,
-            context.committed_files,
-            context.committed_stat,
-            context.committed_diff
+            committed.commits, committed.files, committed.stat, committed.diff
         )
-    };
-    let pending = context
-        .pending
-        .as_ref()
-        .map_or(String::new(), render_pending);
-    let issues = if context.issues.is_empty() {
-        String::new()
+    });
+    let pending = context.pending.map_or(String::new(), render_pending);
+    let issues: String = context
+        .issues
+        .iter()
+        .map(|issue| {
+            format!(
+                "\n### {}\n\nReference: {}\nNumber: {}\nURL: {}\n\n````\n{}\n````\n",
+                issue.title, issue.reference, issue.number, issue.url, issue.body
+            )
+        })
+        .collect();
+    let issues = if issues.is_empty() {
+        issues
     } else {
-        format!("\n## Issues To Close\n{}", render_issues(&context.issues))
+        format!("\n## Issues To Close\n{issues}")
     };
 
     format!(
@@ -238,14 +256,14 @@ Keep every generated field consistent with the others.
     )
 }
 
-fn optional_section(title: &str, value: Option<&str>) -> String {
+fn section(title: &str, value: Option<&str>) -> String {
     value.map_or(String::new(), |value| {
-        format!("\n## {}\n\n````\n{}\n````\n", title, value)
+        format!("\n## {title}\n\n````\n{value}\n````\n")
     })
 }
 
-fn render_pending(pending: &PendingChanges) -> String {
-    let readme = optional_section("README", pending.readme.as_deref());
+fn render_pending(pending: &Changes) -> String {
+    let readme = section("README", pending.readme.as_deref());
     let notes = if pending.notes.is_empty() {
         String::new()
     } else {
@@ -256,17 +274,4 @@ fn render_pending(pending: &PendingChanges) -> String {
         "\n## Pending Changed Files\n\n````\n{}\n````\n\n## Pending Diff Stat\n\n````\n{}\n````\n\n## Pending Numstat\n\n````\n{}\n````\n\n## Pending Diff Summary\n\n````\n{}\n````{}\n## Pending Diff\n\n````diff\n{}\n````{}",
         pending.files, pending.stat, pending.numstat, pending.summary, readme, pending.diff, notes
     )
-}
-
-fn render_issues(issues: &[Issue]) -> String {
-    issues
-        .iter()
-        .map(|issue| {
-            format!(
-                "\n### {}\n\nReference: {}\nNumber: {}\nURL: {}\n\n````\n{}\n````\n",
-                issue.title, issue.reference, issue.number, issue.url, issue.body
-            )
-        })
-        .collect::<Vec<_>>()
-        .join("")
 }

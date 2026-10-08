@@ -1,39 +1,39 @@
-mod select;
-
-use crate::ai;
+use crate::ai::{self, Provider};
 use crate::config;
 use crate::tui::{self, Choice};
-use select::{complete, provider_options};
+use clap::ValueEnum;
 use std::io::{self, IsTerminal};
 
-pub fn run(provider: Option<String>) -> anyhow::Result<()> {
-    let selected = if let Some(provider) = provider {
-        Some(
-            ai::Provider::parse(&provider)
-                .ok_or_else(|| anyhow::anyhow!("Unknown AI provider: {}", provider))?,
-        )
-    } else {
-        anyhow::ensure!(
-            io::stdin().is_terminal() && io::stdout().is_terminal(),
-            "`ggx setup` requires an interactive terminal."
-        );
+pub fn run(provider: Option<Provider>) -> anyhow::Result<()> {
+    let provider = match provider {
+        Some(provider) => provider,
+        None => {
+            anyhow::ensure!(
+                io::stdin().is_terminal() && io::stdout().is_terminal(),
+                "`ggx setup` requires an interactive terminal."
+            );
 
-        let options = provider_options(config::current());
-        let choices = options
-            .iter()
-            .map(|&(label, provider)| Choice::new(label, provider))
-            .collect::<Vec<_>>();
-        tui::select("Choose an AI provider", &choices)?
+            // The current provider comes first, so Enter keeps it.
+            let current = config::load().ok();
+            let mut providers = Provider::value_variants().to_vec();
+            providers.sort_by_key(|provider| Some(*provider) != current);
+            let mut choices: Vec<_> = providers
+                .into_iter()
+                .map(|provider| Choice::new(provider.label(), Some(provider)))
+                .collect();
+            choices.push(Choice::new("Cancel", None));
+
+            let Some(provider) = tui::select("Choose an AI provider", &choices)? else {
+                tui::aborted();
+                return Ok(());
+            };
+            provider
+        }
     };
 
-    if complete(selected, ai::validate, config::save)? {
-        tui::success(
-            "AI provider set to",
-            selected.expect("provider was selected").label(),
-        );
-    } else {
-        tui::aborted();
-    }
+    ai::validate(provider)?;
+    config::save(provider)?;
+    tui::success("AI provider set to", provider.label());
 
     Ok(())
 }
