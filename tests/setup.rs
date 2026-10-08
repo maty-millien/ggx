@@ -1,4 +1,4 @@
-use crate::Env;
+use crate::{CODEX_TOKEN, Env};
 use serde_json::json;
 use std::fs;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -29,12 +29,11 @@ pub fn sign_in_to_copilot(env: &Env, file: &str) {
 #[test]
 fn saves_a_validated_provider() {
     let env = Env::empty();
-    env.respond("codex", "codex-cli 1.0.0\n");
+    env.sign_in_to_codex(CODEX_TOKEN);
 
     let run = env.run(&["setup", "--provider", "codex"]);
 
     assert_eq!(run.success(), "+ AI provider set to Codex\n");
-    assert_eq!(env.calls("codex"), vec![vec!["--version".to_string()]]);
     assert_eq!(
         fs::read_to_string(env.config_path()).unwrap(),
         "{\"provider\":\"codex\"}\n"
@@ -45,10 +44,11 @@ fn saves_a_validated_provider() {
 fn saves_under_xdg_config_home() {
     let env = Env::empty();
     let xdg = env.root.join("xdg");
-    env.respond("claude", "");
 
     let mut command = env.command(&["setup", "--provider", "claude"]);
-    command.env("XDG_CONFIG_HOME", &xdg);
+    command
+        .env("XDG_CONFIG_HOME", &xdg)
+        .env("ANTHROPIC_AUTH_TOKEN", "proxy-token");
 
     assert_eq!(
         env.output(command, "").success(),
@@ -62,27 +62,17 @@ fn saves_under_xdg_config_home() {
 }
 
 #[test]
-fn rejects_an_unusable_cli_without_saving() {
+fn rejects_missing_or_expired_logins_without_saving() {
     let env = Env::empty();
-    env.respond_with("claude", "", "not logged in\n", 1);
-    env.respond_with("claude", "", "", 3);
 
+    env.run(&["setup", "--provider", "codex"])
+        .failure("Codex is not signed in or the token has expired. Run 'codex login' first.");
+    env.sign_in_to_codex("header.eyJleHAiOjF9.signature");
+    env.run(&["setup", "--provider", "codex"])
+        .failure("Codex is not signed in or the token has expired. Run 'codex login' first.");
     env.run(&["setup", "--provider", "claude"])
-        .failure("Claude CLI is not usable: not logged in");
-    env.run(&["setup", "--provider", "claude"])
-        .failure("Claude CLI is not usable: exit status: 3");
+        .failure("Claude is not signed in or the token has expired. Run 'claude login' first.");
     assert!(!env.config_path().exists());
-}
-
-#[test]
-fn reports_a_missing_cli() {
-    let env = Env::empty();
-    fs::remove_file(env.bin.join("codex")).unwrap();
-    let mut command = env.command(&["setup", "--provider", "codex"]);
-    command.env("PATH", &env.bin);
-
-    env.output(command, "")
-        .failure("Could not start Codex CLI (`codex`). Install it before running `ggx setup`.");
 }
 
 #[test]

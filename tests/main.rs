@@ -16,8 +16,9 @@ use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+pub const CODEX_TOKEN: &str = "header.eyJleHAiOjQxMDI0NDQ4MDB9.signature";
 
-const FAKE_TOOLS: &[&str] = &["gh", "curl", "codex", "claude", "security"];
+const FAKE_TOOLS: &[&str] = &["gh", "curl", "security"];
 
 const FAKE_TOOL: &str = r#"dir="$GGX_E2E_FAKES/$(basename "$0")"
 mkdir -p "$dir"
@@ -93,11 +94,15 @@ impl Env {
     pub fn configured() -> Self {
         let env = Self::empty();
         env.write_file(&env.config_path(), r#"{"provider":"codex"}"#);
-        env.write_file(
-            &env.home.join(".codex/auth.json"),
-            r#"{"tokens":{"access_token":"codex-token","account_id":"account-1"}}"#,
-        );
+        env.sign_in_to_codex(CODEX_TOKEN);
         env
+    }
+
+    pub fn sign_in_to_codex(&self, token: &str) {
+        self.write_file(
+            &self.home.join(".codex/auth.json"),
+            &format!(r#"{{"tokens":{{"access_token":"{token}","account_id":"account-1"}}}}"#),
+        );
     }
 
     pub fn repo() -> Self {

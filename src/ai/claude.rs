@@ -46,6 +46,10 @@ pub fn generate(prompt: &str) -> anyhow::Result<String> {
         .collect())
 }
 
+pub fn validate() -> anyhow::Result<()> {
+    auth_headers().map(drop).context(NOT_SIGNED_IN)
+}
+
 fn auth_headers() -> Option<Vec<String>> {
     if let Some(token) = env_var("ANTHROPIC_AUTH_TOKEN") {
         return Some(vec![format!("Authorization: Bearer {token}")]);

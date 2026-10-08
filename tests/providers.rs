@@ -1,5 +1,5 @@
 use crate::setup::{copilot_token, sign_in_to_copilot};
-use crate::{Env, generated, has_header, request_body};
+use crate::{CODEX_TOKEN, Env, generated, has_header, request_body};
 use serde_json::{Value, json};
 use std::fs;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -42,7 +42,10 @@ fn codex_sends_the_prompt_with_the_cli_login() {
         call.last().unwrap(),
         "https://chatgpt.com/backend-api/codex/responses"
     );
-    assert!(has_header(call, "Authorization: Bearer codex-token"));
+    assert!(has_header(
+        call,
+        &format!("Authorization: Bearer {CODEX_TOKEN}")
+    ));
     assert!(has_header(call, "chatgpt-account-id: account-1"));
     let body = request_body(call);
     assert_eq!(body["model"], "gpt-6-luna");
@@ -76,10 +79,17 @@ fn codex_reads_the_login_from_codex_home() {
 fn codex_requires_a_login() {
     let env = Env::repo();
     pending_change(&env, "a.txt");
-    let message = "Codex is not signed in. Run 'codex login' to refresh the token in auth.json.";
+    let message = "Codex is not signed in or the token has expired. Run 'codex login' first.";
 
-    for auth in ["not json", r#"{"tokens":{"access_token":"token"}}"#] {
-        env.write_file(&env.home.join(".codex/auth.json"), auth);
+    for auth in [
+        "not json".to_string(),
+        format!(r#"{{"tokens":{{"access_token":"{CODEX_TOKEN}"}}}}"#),
+    ] {
+        env.write_file(&env.home.join(".codex/auth.json"), &auth);
+        env.run(&["commit", "-y"]).failure(message);
+    }
+    for token in ["not-a-jwt", "header.eyJleHAiOjF9.signature"] {
+        env.sign_in_to_codex(token);
         env.run(&["commit", "-y"]).failure(message);
     }
     fs::remove_file(env.home.join(".codex/auth.json")).unwrap();

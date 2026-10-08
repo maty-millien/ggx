@@ -4,7 +4,7 @@ mod copilot;
 
 use anyhow::{Context, bail};
 use serde_json::Value;
-use std::process::{Command, Stdio};
+use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Clone, Copy, PartialEq, clap::ValueEnum)]
@@ -43,34 +43,11 @@ pub fn generate(provider: Provider, prompt: &str) -> anyhow::Result<String> {
 }
 
 pub fn validate(provider: Provider) -> anyhow::Result<()> {
-    if provider == Provider::Copilot {
-        return copilot::validate();
+    match provider {
+        Provider::Codex => codex::validate(),
+        Provider::Claude => claude::validate(),
+        Provider::Copilot => copilot::validate(),
     }
-
-    let name = provider.name();
-    let output = Command::new(&name)
-        .arg("--version")
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .output()
-        .with_context(|| {
-            format!(
-                "Could not start {} CLI (`{name}`). Install it before running `ggx setup`.",
-                provider.label()
-            )
-        })?;
-
-    if !output.status.success() {
-        let detail = String::from_utf8_lossy(&output.stderr).trim().to_string();
-        let detail = if detail.is_empty() {
-            output.status.to_string()
-        } else {
-            detail
-        };
-        bail!("{} CLI is not usable: {detail}", provider.label());
-    }
-
-    Ok(())
 }
 
 fn curl(provider: Provider, args: &[&str]) -> anyhow::Result<String> {
