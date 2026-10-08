@@ -149,7 +149,7 @@ fn claude_uses_the_proxy_token_and_base_url() {
         body["messages"][0]["content"]
             .as_str()
             .unwrap()
-            .starts_with("Do not invoke tools.\n")
+            .starts_with("## Instructions\n")
     );
     assert_eq!(env.last_commit(), COMMIT);
 }

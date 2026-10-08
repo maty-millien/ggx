@@ -28,18 +28,10 @@ impl Provider {
     }
 }
 
-const DIRECT_RESPONSE_INSTRUCTIONS: &str = r#"Do not invoke tools.
-Do not inspect files.
-Do not run commands.
-Return only the requested text and nothing else.
-
-"#;
-
 pub fn generate(provider: Provider, prompt: &str) -> anyhow::Result<String> {
-    let direct = || format!("{DIRECT_RESPONSE_INSTRUCTIONS}{prompt}");
     let text = match provider {
-        Provider::Codex => codex::generate(&direct())?,
-        Provider::Claude => claude::generate(&direct())?,
+        Provider::Codex => codex::generate(prompt)?,
+        Provider::Claude => claude::generate(prompt)?,
         Provider::Copilot => copilot::generate(prompt)?,
     };
 

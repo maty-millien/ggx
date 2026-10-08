@@ -40,7 +40,7 @@ fn sends_the_pending_changes_to_the_model() {
     env.run(&["commit", "-y"]).success();
 
     let prompt = &env.prompts()[0];
-    assert!(prompt.starts_with("Do not invoke tools.\n"), "{prompt}");
+    assert!(prompt.starts_with("## Instructions\n"), "{prompt}");
     for expected in [
         "Set branch to null.",
         "Set commit to one Conventional Commit line using type(scope): subject.",
