@@ -2,7 +2,10 @@
 
 `ggx` is a Rust CLI for AI-powered git workflows.
 
-After completing your task, always run `scripts/ci.sh`.
+## Rules
+
+- After completing your task, always run `scripts/ci.sh`.
+- Don't write comments in code unless asked.
 
 ## Tests
 
