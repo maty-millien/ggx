@@ -15,13 +15,15 @@ cargo update
 echo "Updating dist version"
 dist_version=$(dist --version | cut -d' ' -f2)
 perl -pi -e "s/cargo-dist-version = \"[^\"]*\"/cargo-dist-version = \"$dist_version\"/" dist-workspace.toml
-perl -pi -e "s|cargo-dist/releases/download/v[^/]*/|cargo-dist/releases/download/v$dist_version/|" .github/workflows/release.yml
 
 echo "Updating GitHub Actions"
 for action in $(grep -hoE '[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@v[0-9]+' .github/workflows/*.yml | cut -d@ -f1 | sort -u); do
   major=$(gh api "repos/$action/releases/latest" --jq .tag_name | cut -d. -f1)
   perl -pi -e "s|\Q$action\E\@v\d+|$action\@$major|g" .github/workflows/*.yml
 done
+
+echo "Regenerating release workflow"
+dist generate --mode=ci
 
 scripts/ci.sh
 
