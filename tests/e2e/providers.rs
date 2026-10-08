@@ -140,6 +140,7 @@ fn claude_uses_the_proxy_token_and_base_url() {
     let body = request_body(call);
     assert_eq!(body["model"], "claude-haiku-5-5");
     assert_eq!(body["max_tokens"], 4096);
+    assert_eq!(body["thinking"]["type"], "disabled");
     assert_eq!(
         body["system"],
         "You are Claude Code, Anthropic's official CLI for Claude."
