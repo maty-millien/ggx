@@ -1,9 +1,19 @@
 mod ai;
-mod commands;
 mod config;
 mod git;
 mod github;
 mod tui;
+
+mod commands {
+    pub mod branch;
+    pub mod commit;
+    mod generation;
+    pub mod merge;
+    pub mod pr;
+    pub mod setup;
+    pub mod sync;
+    pub mod update;
+}
 
 use ai::Provider;
 use clap::Parser;
