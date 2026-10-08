@@ -11,15 +11,9 @@ const MAX_TOKENS: u32 = 4096;
 const KEYCHAIN_SERVICE: &str = "Claude Code-credentials";
 const NOT_SIGNED_IN: &str =
     "Claude is not signed in or the token has expired. Run 'claude login' first.";
-// The API only accepts Claude CLI OAuth tokens when the system prompt opens
-// with the CLI's own identity line.
 const INSTRUCTIONS: &str = "You are Claude Code, Anthropic's official CLI for Claude.";
 
 pub fn generate(prompt: &str) -> anyhow::Result<String> {
-    // The CLI spends seconds on startup, so ggx talks to the Messages API
-    // directly with the credentials the CLI itself uses and never falls back
-    // to the CLI. ANTHROPIC_BASE_URL and ANTHROPIC_AUTH_TOKEN are honoured so
-    // that a local proxy configured for the CLI also routes ggx.
     let base_url = env_var("ANTHROPIC_BASE_URL").unwrap_or_else(|| API_URL.to_string());
     let url = format!("{base_url}/v1/messages");
     let body = json!({
@@ -58,7 +52,6 @@ fn auth_headers() -> Option<Vec<String>> {
 
     let credentials: Value = serde_json::from_str(&credentials()?).ok()?;
     let oauth = &credentials["claudeAiOauth"];
-    // Skip tokens that expire within a minute.
     if oauth["expiresAt"].as_u64()? <= (now_secs() + 60) * 1000 {
         return None;
     }
@@ -72,7 +65,6 @@ fn auth_headers() -> Option<Vec<String>> {
     ])
 }
 
-/// The CLI's credentials file, or the macOS keychain entry the CLI uses instead.
 fn credentials() -> Option<String> {
     if let Some(contents) = config::dir("CLAUDE_CONFIG_DIR", ".claude")
         .and_then(|dir| fs::read_to_string(dir.join(".credentials.json")).ok())

@@ -46,7 +46,6 @@ pub fn run(provider: Provider, yes: bool) -> anyhow::Result<()> {
     finish(&branch, &message, upstream)
 }
 
-/// Commits everything, then pushes when there is an upstream or an origin.
 pub fn finish(branch: &str, message: &str, upstream: Option<String>) -> anyhow::Result<()> {
     tui::spinner("Staging changes", || git::run(&["add", "--all"]))?;
     tui::spinner("Creating commit", || git::run(&["commit", "-m", message]))?;
@@ -60,7 +59,6 @@ pub fn finish(branch: &str, message: &str, upstream: Option<String>) -> anyhow::
     Ok(())
 }
 
-/// Pushes to `upstream`, or to origin with tracking when there is none.
 pub fn push(branch: &str, upstream: Option<String>, label: &'static str) -> anyhow::Result<()> {
     let destination = match upstream {
         Some(upstream) => {
@@ -77,7 +75,6 @@ pub fn push(branch: &str, upstream: Option<String>, label: &'static str) -> anyh
     Ok(())
 }
 
-/// Pairs `git diff --name-status` lines with their `--numstat` counts.
 pub fn rows(files: &str, numstat: &str) -> Vec<tui::ChangeRow> {
     files
         .lines()
@@ -103,8 +100,6 @@ pub fn rows(files: &str, numstat: &str) -> Vec<tui::ChangeRow> {
         .collect()
 }
 
-/// Uncommitted changes, untracked files included, as `git commit` would see
-/// them after `git add --all`.
 pub struct Changes {
     pub files: String,
     pub stat: String,
@@ -117,7 +112,6 @@ pub struct Changes {
 
 impl Changes {
     pub fn collect() -> anyhow::Result<Self> {
-        // Stage everything into a copy of the index so the real one is untouched.
         let index = TemporaryFile(env::temp_dir().join(format!("ggx-index-{}", process::id())));
         let git =
             |args: &[&str]| crate::run("git", args, &[("GIT_INDEX_FILE", index.0.as_os_str())]);
@@ -138,7 +132,6 @@ impl Changes {
         let mut notes = Vec::new();
         let mut full_diff = diff("--unified=3")?;
         if full_diff.chars().count() > MAX_DIFF_CHARS {
-            // Overflowing the total always cuts at least one file.
             notes.extend([
                 "Diff exceeded context budget.",
                 "One or more file diffs were truncated.",
@@ -174,9 +167,6 @@ impl Drop for TemporaryFile {
     }
 }
 
-/// Cuts a diff to `max_chars` while sharing the budget across files, so one
-/// large file can't push the others out: files smaller than their share stay
-/// whole and the larger ones split what is left.
 fn budget_diff(diff: &str, max_chars: usize) -> String {
     let mut starts: Vec<usize> = std::iter::once(0)
         .chain(
@@ -209,7 +199,6 @@ fn budget_diff(diff: &str, max_chars: usize) -> String {
         .collect()
 }
 
-/// The first README found at the repository root, then in docs/.
 fn read_readme(root: &Path) -> anyhow::Result<Option<String>> {
     for dir in [root.to_path_buf(), root.join("docs")] {
         let Ok(entries) = fs::read_dir(&dir) else {

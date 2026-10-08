@@ -34,12 +34,10 @@ pub fn save(provider: Provider) -> anyhow::Result<()> {
     Ok(write(&path()?, contents)?)
 }
 
-/// A file next to the configuration file.
 pub fn sibling(name: &str) -> anyhow::Result<PathBuf> {
     Ok(path()?.with_file_name(name))
 }
 
-/// `$var` when set, otherwise `$HOME/<home_subdir>`.
 pub fn dir(var: &str, home_subdir: &str) -> Option<PathBuf> {
     let non_empty = |name: &str| {
         env::var_os(name)
@@ -49,7 +47,6 @@ pub fn dir(var: &str, home_subdir: &str) -> Option<PathBuf> {
     non_empty(var).or_else(|| non_empty("HOME").map(|home| home.join(home_subdir)))
 }
 
-/// Writes a file, creating its parent directories.
 pub fn write(path: &Path, contents: impl AsRef<[u8]>) -> io::Result<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;

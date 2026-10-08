@@ -9,7 +9,6 @@ const INSTALLER_URL: &str =
     "https://github.com/maty-millien/ggx/releases/latest/download/ggx-installer.sh";
 const CHECK_INTERVAL: Duration = Duration::from_secs(24 * 60 * 60);
 
-/// Starts the updater in the background, at most once a day.
 pub fn start_automatic() {
     let (Ok(executable), Some(marker)) = (env::current_exe(), marker()) else {
         return;
@@ -65,7 +64,6 @@ pub fn run() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Runs the updater and returns the version it left installed.
 fn install(updater: &Path, executable: &Path) -> anyhow::Result<String> {
     let output = Command::new(updater)
         .stdin(Stdio::null())

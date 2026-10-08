@@ -76,7 +76,6 @@ fn reads_configuration_from_xdg_config_home() {
     command.env("XDG_CONFIG_HOME", &xdg);
     let run = env.output(command, "");
 
-    // Configuration loaded, so ggx reached git, which fails outside a repository.
     assert_eq!(run.code, 1);
     assert!(
         run.stderr

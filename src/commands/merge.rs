@@ -74,7 +74,6 @@ fn summary(pull_request: &github::PullRequest) -> String {
     lines.join("\n")
 }
 
-/// `CHANGES_REQUESTED` becomes `Changes requested`.
 fn readable(status: &str) -> String {
     let status = if status.is_empty() { "unknown" } else { status };
     let status = status.replace('_', " ").to_lowercase();

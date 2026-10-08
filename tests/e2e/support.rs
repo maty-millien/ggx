@@ -9,8 +9,6 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 const FAKE_TOOLS: &[&str] = &["gh", "curl", "codex", "claude", "security"];
 
-// Replays the responses queued with Env::respond, one per call, and records
-// each call's arguments as NUL-separated values.
 const FAKE_TOOL: &str = r#"dir="$GGX_E2E_FAKES/$(basename "$0")"
 mkdir -p "$dir"
 n=$(( $(cat "$dir/count" 2>/dev/null || echo 0) + 1 ))
@@ -53,7 +51,6 @@ pub struct Run {
 }
 
 impl Env {
-    /// Isolated home and fake tools, with no configuration and no repository.
     pub fn empty() -> Self {
         static COUNTER: AtomicUsize = AtomicUsize::new(0);
         let root = std::env::temp_dir().join(format!(
@@ -83,7 +80,6 @@ impl Env {
         env
     }
 
-    /// Empty environment set up with the Codex provider.
     pub fn configured() -> Self {
         let env = Self::empty();
         env.write_file(&env.config_path(), r#"{"provider":"codex"}"#);
@@ -94,8 +90,6 @@ impl Env {
         env
     }
 
-    /// Configured environment with a repository on main, pushed to a local
-    /// bare origin.
     pub fn repo() -> Self {
         let env = Self::configured();
         env.git(&["init"]);
@@ -144,7 +138,6 @@ impl Env {
             .stderr(Stdio::piped())
             .spawn()
             .unwrap();
-        // ggx may exit before reading its input.
         let _ = child.stdin.take().unwrap().write_all(input.as_bytes());
         let output = child.wait_with_output().unwrap();
 
@@ -155,7 +148,6 @@ impl Env {
         }
     }
 
-    /// Queues the next response of a fake tool.
     pub fn respond(&self, tool: &str, stdout: &str) {
         self.respond_with(tool, stdout, "", 0);
     }
@@ -171,7 +163,6 @@ impl Env {
         fs::write(directory.join(format!("{call}.code")), code.to_string()).unwrap();
     }
 
-    /// Arguments of every call a fake tool received.
     pub fn calls(&self, tool: &str) -> Vec<Vec<String>> {
         let directory = self.fakes.join(tool);
         (1..)
@@ -187,7 +178,6 @@ impl Env {
             .collect()
     }
 
-    /// Queues a Codex reply whose text is the given JSON.
     pub fn reply(&self, output: Value) {
         self.reply_text(&output.to_string());
     }
@@ -196,7 +186,6 @@ impl Env {
         self.respond("curl", &codex_stream(text));
     }
 
-    /// Prompts sent to Codex, in order.
     pub fn prompts(&self) -> Vec<String> {
         self.calls("curl")
             .iter()
@@ -224,7 +213,6 @@ impl Env {
         String::from_utf8_lossy(&output.stdout).to_string()
     }
 
-    /// Runs git and reports whether it succeeded, for commands expected to fail.
     pub fn git_status(&self, args: &[&str]) -> bool {
         self.git_command(&self.repo, args)
             .output()
@@ -276,7 +264,6 @@ impl Env {
         fs::write(path, contents).unwrap();
     }
 
-    /// Writes an executable shell script.
     pub fn script(&self, path: &Path, body: &str) {
         let source = self.root.join(format!(
             "{}.src",
@@ -286,9 +273,6 @@ impl Env {
         self.install(&source, path);
     }
 
-    /// Copies a file as an executable. A child process does the writing:
-    /// another test thread may fork while this process holds a writable fd on
-    /// the file, which makes executing it fail with "Text file busy" on Linux.
     pub fn install(&self, source: &Path, destination: &Path) {
         fs::create_dir_all(destination.parent().unwrap()).unwrap();
         let status = Command::new("install")
@@ -347,7 +331,6 @@ impl Run {
     }
 }
 
-/// JSON object the model returns for a generation request.
 pub fn generated(
     branch: Option<&str>,
     commit: Option<&str>,
@@ -360,7 +343,6 @@ pub fn generated(
     })
 }
 
-/// Server-sent events from the Codex backend, split into two text deltas.
 pub fn codex_stream(text: &str) -> String {
     let middle = text
         .char_indices()
@@ -392,7 +374,6 @@ pub fn has_header(args: &[String], header: &str) -> bool {
         .any(|pair| pair[0] == "-H" && pair[1] == header)
 }
 
-/// Text between the opening and closing fence of a prompt section.
 pub fn section<'a>(prompt: &'a str, heading: &str) -> &'a str {
     let start = prompt
         .find(heading)

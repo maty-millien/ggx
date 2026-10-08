@@ -200,7 +200,6 @@ fn claude_requires_a_valid_login() {
     env.use_provider("claude");
     pending_change(&env, "a.txt");
 
-    // No credentials file, and the keychain lookup fails on macOS.
     env.run(&["commit", "-y"]).failure(CLAUDE_NOT_SIGNED_IN);
 
     env.write_file(
@@ -311,13 +310,11 @@ fn copilot_completes_with_a_cached_session() {
     );
     assert_eq!(env.last_commit(), COMMIT);
 
-    // The cached token is reused.
     env.respond("curl", &completion);
     pending_change(&env, "b.txt");
     env.run(&["commit", "-y"]).success();
     assert_eq!(env.calls("curl").len(), 3);
 
-    // An expiring token is refreshed.
     env.write_file(
         &env.home.join(".config/ggx/copilot-token.json"),
         &copilot_token(30),

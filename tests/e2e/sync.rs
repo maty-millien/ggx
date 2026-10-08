@@ -1,6 +1,5 @@
 use crate::support::Env;
 
-/// Adds a branch with one commit, pushed to origin, then deleted on origin.
 fn gone_branch(env: &Env, name: &str) {
     env.git(&["checkout", "-b", name, "main"]);
     env.write(&format!("{name}.txt"), "x\n");

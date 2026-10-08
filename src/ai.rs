@@ -23,7 +23,6 @@ impl Provider {
         }
     }
 
-    /// The configuration value and the provider's CLI binary.
     pub fn name(self) -> String {
         self.label().to_lowercase()
     }
@@ -106,7 +105,6 @@ fn curl(provider: Provider, args: &[&str]) -> anyhow::Result<String> {
     Ok(stdout)
 }
 
-/// JSON payloads of a server-sent event stream.
 fn sse_events(raw: &str) -> impl Iterator<Item = Value> + '_ {
     raw.lines()
         .filter_map(|line| serde_json::from_str(line.strip_prefix("data: ")?).ok())

@@ -11,8 +11,6 @@ const NOT_SIGNED_IN: &str =
     "Codex is not signed in. Run 'codex login' to refresh the token in auth.json.";
 
 pub fn generate(prompt: &str) -> anyhow::Result<String> {
-    // The CLI spends seconds on startup, so ggx talks to its backend directly
-    // with the token the CLI stores and never falls back to the CLI.
     let auth: Value = config::dir("CODEX_HOME", ".codex")
         .and_then(|dir| fs::read_to_string(dir.join("auth.json")).ok())
         .and_then(|contents| serde_json::from_str(&contents).ok())

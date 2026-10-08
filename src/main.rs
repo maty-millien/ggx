@@ -26,7 +26,6 @@ use std::process::{Command, ExitCode};
 struct Cli {
     #[arg(short = 'v', long, action = clap::ArgAction::Version)]
     version: (),
-    /// Automatically confirm actions without terminal input
     #[arg(short, long, global = true)]
     yes: bool,
     #[command(subcommand)]
@@ -69,7 +68,6 @@ enum Action {
 
 fn main() -> ExitCode {
     let Cli { yes, action, .. } = Cli::parse();
-    // Setup ignores -y: it asks unless --provider is given.
     let interactive = match &action {
         Action::Setup { provider } => provider.is_none(),
         _ => !yes,
@@ -110,7 +108,6 @@ fn dispatch(action: Action, yes: bool) -> anyhow::Result<()> {
     }
 }
 
-/// Runs a program and returns its trimmed stdout, or fails with its stderr.
 pub fn run(program: &str, args: &[&str], envs: &[(&str, &OsStr)]) -> anyhow::Result<String> {
     let output = Command::new(program)
         .args(args)

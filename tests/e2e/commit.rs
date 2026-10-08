@@ -112,7 +112,6 @@ fn notes_truncated_context() {
     ));
     let diff = section(prompt, "## Pending Diff\n");
     assert!(diff.chars().count() <= 16_000);
-    // Every file keeps a share of the budget, and small files stay whole.
     assert!(diff.contains("diff --git a/README.md b/README.md"));
     assert!(diff.contains("diff --git a/big.txt b/big.txt"));
     assert!(diff.contains("+small change"));
@@ -140,7 +139,6 @@ fn asks_before_committing() {
     assert!(stdout.contains("  ○ Commit and push to origin/feature\n  ● Cancel\n"));
     assert!(stdout.ends_with("+ What would you like to do?\n│ Cancel\n│\n+ Aborted\n"));
     assert_eq!(env.last_commit(), "initial");
-    // The preview staged nothing for real.
     assert_eq!(env.git(&["diff", "--staged", "--name-status"]), staged);
     let files = section(&env.prompts()[0], "## Pending Changed Files").to_string();
     assert_eq!(files, "A\tstaged.txt\nA\tunstaged.txt");

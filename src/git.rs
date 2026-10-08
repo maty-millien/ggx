@@ -52,7 +52,6 @@ pub fn default_base() -> anyhow::Result<String> {
         .context("Could not detect origin default branch.")
 }
 
-/// `base` if it exists locally, otherwise `origin/base`.
 pub fn base_ref(base: &str) -> anyhow::Result<String> {
     let remote = format!("origin/{base}");
     [base, &remote]
@@ -67,7 +66,6 @@ pub fn merged_branches(base: &str) -> anyhow::Result<Vec<String>> {
     Ok(output.lines().map(str::to_string).collect())
 }
 
-/// Branches whose upstream was deleted and that have nothing left to push.
 pub fn gone_branches() -> anyhow::Result<Vec<String>> {
     let output = run(&["branch", "--format", "%(refname:short)%09%(upstream:track)"])?;
     Ok(output

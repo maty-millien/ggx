@@ -4,7 +4,6 @@ use std::io::{self, IsTerminal, Read};
 use std::os::fd::{AsRawFd, RawFd};
 use std::time::{Duration, Instant};
 
-/// One line of `git diff --name-status` with its `--numstat` counts.
 pub struct ChangeRow {
     pub status: char,
     pub path: String,
@@ -213,7 +212,6 @@ fn block_width() -> usize {
     width.saturating_sub(4).max(20)
 }
 
-/// Hides empty, binary (`-`) and zero counts.
 fn count(sign: char, value: &str, color: Color) -> String {
     if matches!(value, "" | "-" | "0") {
         return String::new();
@@ -221,7 +219,6 @@ fn count(sign: char, value: &str, color: Color) -> String {
     format!(" {}", style(format!("{sign}{value}")).fg(color))
 }
 
-/// Colors the type and scope of a `type(scope): subject` line.
 fn commit_message(message: &str) -> String {
     let Some((kind, rest)) = message.split_once(':') else {
         return style(message).green().bold().to_string();
@@ -234,7 +231,6 @@ fn commit_message(message: &str) -> String {
     format!("{kind}:{}", style(rest).white())
 }
 
-/// Wraps on spaces, keeping the line's indent and splitting words longer than the width.
 fn wrap_line(line: &str, width: usize) -> Vec<String> {
     if line.chars().count() <= width {
         return vec![line.to_string()];
@@ -335,7 +331,6 @@ fn read_select_key() -> anyhow::Result<SelectKey> {
     })
 }
 
-/// Digits pick a choice, starting at 1.
 fn digit_key(character: char) -> SelectKey {
     match character.to_digit(10) {
         Some(digit @ 1..) => SelectKey::Index(digit as usize - 1),
@@ -343,7 +338,6 @@ fn digit_key(character: char) -> SelectKey {
     }
 }
 
-/// Hides the cursor and keystroke echo for the duration of a command.
 struct TerminalSession {
     term: Option<Term>,
     _input: Option<InputModeGuard>,

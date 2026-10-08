@@ -57,7 +57,6 @@ pub fn pull_request() -> anyhow::Result<PullRequest> {
     })
 }
 
-/// URL of the open pull request for `branch`, if any.
 pub fn open_pull_request(branch: &str) -> anyhow::Result<Option<String>> {
     let output = run(&[
         "pr", "list", "--head", branch, "--state", "open", "--limit", "1", "--json", "url",

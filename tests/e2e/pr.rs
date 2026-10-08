@@ -336,7 +336,6 @@ fn describes_the_action_before_confirming() {
         "{stdout}"
     );
 
-    // Only the open pull request lookups reached gh.
     assert_eq!(env.calls("gh").len(), 2);
     assert_eq!(env.remote_branches(), "main\n");
 }
@@ -355,7 +354,6 @@ fn wraps_long_lines_to_the_terminal_width() {
 
     let stdout = env.run(&["pr", "-y"]).success().to_string();
 
-    // Without a terminal the width is 80 columns, minus 4 for the rail.
     let expected_title = format!("│ Title\n│ Add {}\n│ {}\n", words(14), words(6));
     let expected_body = format!(
         "│ Body\n│ {}\n│ {}\n│ {}\n│ {}\n│   - {}\n│   {}\n",

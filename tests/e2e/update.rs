@@ -9,7 +9,6 @@ printf '#!/bin/sh\n%s\n' "$GGX_REPLACEMENT" > ggx.new
 chmod 755 ggx.new
 mv ggx.new ggx"#;
 
-/// Installs a copy of ggx next to a fake ggx-update script.
 fn install(env: &Env, updater: &str) -> PathBuf {
     let directory = env.root.join("install");
     let executable = directory.join("ggx");
@@ -102,7 +101,6 @@ fn checks_for_updates_in_the_background_once_a_day() {
         if ci {
             command.env("CI", "true");
         }
-        // sync fails outside a repository, after the update check started.
         assert_eq!(env.output(command, "").code, 1);
     };
 

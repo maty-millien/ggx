@@ -13,7 +13,6 @@ pub fn run(provider: Option<Provider>) -> anyhow::Result<()> {
                 "`ggx setup` requires an interactive terminal."
             );
 
-            // The current provider comes first, so Enter keeps it.
             let current = config::load().ok();
             let mut providers = Provider::value_variants().to_vec();
             providers.sort_by_key(|provider| Some(*provider) != current);

@@ -7,7 +7,6 @@ use std::time::Instant;
 
 const MAX_ISSUE_BODY_CHARS: usize = 8_000;
 
-/// What the branch already committed since it left the base.
 pub struct Committed {
     pub commits: String,
     pub files: String,
@@ -36,7 +35,6 @@ pub fn run(
             "Current branch '{branch}' is the default base branch. Checkout '{base}' or a feature branch first."
         );
     }
-    // Changes made directly on the base go to a new branch.
     let create_branch = branch == base;
     ensure!(
         !create_branch || has_changes,

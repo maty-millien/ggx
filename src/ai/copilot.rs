@@ -36,8 +36,6 @@ pub fn generate(prompt: &str) -> anyhow::Result<String> {
         &format!("{proxy}{COMPLETIONS_PATH}"),
     )?;
 
-    // The completion continues the seed, which may be followed by more text
-    // than the JSON object, so keep only the first JSON value.
     let completion: String = sse_events(&raw)
         .filter_map(|event| event["choices"][0]["text"].as_str().map(str::to_owned))
         .collect();
@@ -53,7 +51,6 @@ pub fn validate() -> anyhow::Result<()> {
     session().map(drop)
 }
 
-/// A cached or freshly exchanged Copilot token and its API endpoint.
 fn session() -> anyhow::Result<(String, String)> {
     let cache = config::sibling(TOKEN_CACHE)?;
     if let Some(session) = fs::read_to_string(&cache)
@@ -83,7 +80,6 @@ fn parse_session(contents: &str) -> Option<(String, String)> {
     ))
 }
 
-/// The GitHub login saved by the Copilot CLI or an editor plugin.
 fn oauth_token() -> anyhow::Result<String> {
     let directory = config::dir("XDG_CONFIG_HOME", ".config")
         .context(NOT_SIGNED_IN)?

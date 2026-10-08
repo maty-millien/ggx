@@ -9,9 +9,6 @@ const COMMIT_TYPES: &[&str] = &[
     "feat", "fix", "refactor", "docs", "test", "chore", "build", "ci",
 ];
 
-/// What the model sees. It names a branch when `new_branch` is set, writes a
-/// commit message when there are `pending` changes, and writes a pull
-/// request when there is a `base`.
 #[derive(Default)]
 pub struct Context<'a> {
     pub current_branch: &'a str,
@@ -34,7 +31,6 @@ pub struct PullRequest {
     pub body: String,
 }
 
-/// Asks the model, and asks once more with the reason if the reply is rejected.
 pub fn generate(provider: Provider, context: &Context) -> anyhow::Result<Output> {
     let attempt = |retry: Option<&str>| -> anyhow::Result<Output> {
         let output = parse(&ai::generate(provider, &render(context, retry))?, context)?;
@@ -104,8 +100,6 @@ fn parse(raw: &str, context: &Context) -> anyhow::Result<Output> {
     })
 }
 
-/// Takes the first line outside a code fence, lowercases it and drops
-/// characters git or the type/slug format reject.
 fn normalize_branch(raw: &str) -> anyhow::Result<String> {
     let line = raw
         .lines()
@@ -147,7 +141,6 @@ fn validate_commit(message: &str) -> anyhow::Result<()> {
         !message.is_empty() && !message.contains(['\n', '\r']),
         "Commit message must be exactly one line."
     );
-    // The message is trimmed, so a subject after ": " is never empty.
     let Some((kind, _)) = message.split_once(": ") else {
         bail!("Commit message must use 'type(scope): subject'.");
     };
