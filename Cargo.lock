@@ -166,7 +166,7 @@ dependencies = [
 
 [[package]]
 name = "ggx"
-version = "0.8.7"
+version = "0.8.8"
 dependencies = [
  "anyhow",
  "base64",

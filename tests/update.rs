@@ -57,7 +57,10 @@ fn reports_when_already_up_to_date() {
 
     let stdout = update(&env, &executable, "").success().to_string();
 
-    assert!(stdout.ends_with("+ Already up to date\n"), "{stdout}");
+    assert!(
+        stdout.ends_with(&format!("+ Already up to date {VERSION}\n")),
+        "{stdout}"
+    );
     assert!(env.home.join(".cache/ggx/update-check").is_file());
 }
 

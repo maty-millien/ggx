@@ -54,7 +54,7 @@ pub fn run() -> anyhow::Result<()> {
         tui::timed_spinner("Checking for updates", || install(&updater, &executable))?;
     if installed == current_version {
         tui::step("Update check complete", elapsed);
-        tui::warning("Already up to date");
+        tui::success("Already up to date", current_version);
     } else {
         tui::success("New version", &installed);
         tui::rail();
