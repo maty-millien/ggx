@@ -6,7 +6,7 @@
 
 `branch` · `commit` · `pull request` · `merge`
 
-<img src="demo.gif" alt="ggx branch creating a branch, commit, and push from local changes" width="800">
+<img src="demo.gif" alt="ggx branch, commit, pr, and merge generating each step with AI" width="800">
 
 </div>
 
