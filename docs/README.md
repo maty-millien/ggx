@@ -6,6 +6,8 @@
 
 `branch` · `commit` · `pull request` · `merge`
 
+<img src="demo.gif" alt="ggx branch creating a branch, commit, and push from local changes" width="800">
+
 </div>
 
 ## Install
