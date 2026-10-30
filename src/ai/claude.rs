@@ -54,6 +54,9 @@ fn auth_headers() -> Option<Vec<String>> {
     if let Some(token) = env_var("ANTHROPIC_AUTH_TOKEN") {
         return Some(vec![format!("Authorization: Bearer {token}")]);
     }
+    if let Some(key) = env_var("ANTHROPIC_API_KEY") {
+        return Some(vec![format!("x-api-key: {key}")]);
+    }
 
     let credentials: Value = serde_json::from_str(&credentials()?).ok()?;
     let oauth = &credentials["claudeAiOauth"];
@@ -91,5 +94,15 @@ fn credentials() -> Option<String> {
 }
 
 fn env_var(name: &str) -> Option<String> {
-    env::var(name).ok().filter(|value| !value.is_empty())
+    env::var(name)
+        .ok()
+        .filter(|value| !value.is_empty())
+        .or_else(|| settings_env(name))
+        .filter(|value| !value.is_empty())
+}
+
+fn settings_env(name: &str) -> Option<String> {
+    let path = config::dir("CLAUDE_CONFIG_DIR", ".claude")?.join("settings.json");
+    let settings: Value = serde_json::from_str(&fs::read_to_string(path).ok()?).ok()?;
+    settings["env"][name].as_str().map(str::to_string)
 }

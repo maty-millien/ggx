@@ -98,6 +98,140 @@ fn codex_requires_a_login() {
 }
 
 #[test]
+fn codex_uses_an_api_key_login() {
+    let env = Env::repo();
+    env.write_file(
+        &env.home.join(".codex/auth.json"),
+        r#"{"OPENAI_API_KEY":"sk-auth","tokens":null}"#,
+    );
+    pending_change(&env, "a.txt");
+    env.reply(output());
+
+    env.run(&["commit", "-y"]).success();
+
+    let call = &env.calls("curl")[0];
+    assert_eq!(call.last().unwrap(), "https://api.openai.com/v1/responses");
+    assert!(has_header(call, "Authorization: Bearer sk-auth"));
+    assert!(!call.iter().any(|arg| arg.starts_with("chatgpt-account-id")));
+    assert_eq!(request_body(call)["model"], "gpt-6-luna");
+
+    fs::remove_file(env.home.join(".codex/auth.json")).unwrap();
+    pending_change(&env, "b.txt");
+    env.reply(output());
+    let mut command = env.command(&["commit", "-y"]);
+    command
+        .env("OPENAI_API_KEY", "sk-env")
+        .env("OPENAI_BASE_URL", "https://openai.example/v1/");
+    env.output(command, "").success();
+
+    let call = &env.calls("curl")[1];
+    assert_eq!(call.last().unwrap(), "https://openai.example/v1/responses");
+    assert!(has_header(call, "Authorization: Bearer sk-env"));
+}
+
+#[test]
+fn codex_uses_a_custom_provider_from_the_codex_config() {
+    let env = Env::repo();
+    let config = env.home.join(".codex/config.toml");
+    env.write_file(
+        &config,
+        r#"model = "main-model"
+model_provider = "router"
+
+[model_providers.router]
+base_url = "https://router.example/v1"
+env_key = "GGX_ROUTER_KEY"
+http_headers = { "X-Team" = "ggx" }
+"#,
+    );
+    pending_change(&env, "a.txt");
+    env.reply(output());
+
+    let mut command = env.command(&["commit", "-y"]);
+    command.env("GGX_ROUTER_KEY", "router-key");
+    env.output(command, "").success();
+
+    let call = &env.calls("curl")[0];
+    assert_eq!(call.last().unwrap(), "https://router.example/v1/responses");
+    assert!(has_header(call, "Authorization: Bearer router-key"));
+    assert!(has_header(call, "X-Team: ggx"));
+    assert!(!call.iter().any(|arg| arg.starts_with("chatgpt-account-id")));
+    let body = request_body(call);
+    assert_eq!(body["model"], "main-model");
+    assert!(body.get("reasoning").is_none());
+    assert_eq!(env.last_commit(), COMMIT);
+
+    env.write_file(
+        &config,
+        r#"profile = "local"
+
+[profiles.local]
+model = "local-model"
+model_provider = "local"
+
+[model_providers.local]
+base_url = "http://localhost:11434/v1"
+wire_api = "chat"
+"#,
+    );
+    pending_change(&env, "b.txt");
+    env.respond(
+        "curl",
+        &json!({"choices": [{"message": {"content": output().to_string()}}]}).to_string(),
+    );
+
+    env.run(&["commit", "-y"]).success();
+
+    let call = &env.calls("curl")[1];
+    assert_eq!(
+        call.last().unwrap(),
+        "http://localhost:11434/v1/chat/completions"
+    );
+    assert!(!call.iter().any(|arg| arg.starts_with("Authorization")));
+    let body = request_body(call);
+    assert_eq!(body["model"], "local-model");
+    assert_eq!(
+        body["messages"][0]["content"],
+        "You are a git workflow assistant."
+    );
+    assert!(
+        body["messages"][1]["content"]
+            .as_str()
+            .unwrap()
+            .starts_with("## Instructions\n")
+    );
+}
+
+#[test]
+fn codex_rejects_incomplete_custom_providers() {
+    let env = Env::empty();
+    let config = env.home.join(".codex/config.toml");
+    let undefined = format!(
+        "Codex provider 'router' is not defined in {}.",
+        config.display()
+    );
+    let invalid = format!("Invalid Codex config at {}.", config.display());
+    let cases = [
+        ("model_provider = \"router\"\n", undefined.as_str()),
+        (
+            "model_provider = \"router\"\n[model_providers.router]\nenv_key = \"GGX_ROUTER_KEY\"\n",
+            "Codex provider 'router' has no base_url.",
+        ),
+        (
+            "model_provider = \"router\"\n[model_providers.router]\nbase_url = \"https://router.example/v1\"\nenv_key = \"GGX_ROUTER_KEY\"\n",
+            "Codex provider 'router' needs the GGX_ROUTER_KEY environment variable.",
+        ),
+        ("model_provider = ", invalid.as_str()),
+    ];
+
+    for (contents, message) in cases {
+        env.write_file(&config, contents);
+        env.run(&["setup", "--provider", "codex"]).failure(message);
+    }
+    assert!(!env.config_path().exists());
+}
+
+#[test]
 fn codex_reports_failures() {
     let env = Env::repo();
     pending_change(&env, "a.txt");
@@ -162,6 +296,43 @@ fn claude_uses_the_proxy_token_and_base_url() {
             .starts_with("## Instructions\n")
     );
     assert_eq!(env.last_commit(), COMMIT);
+}
+
+#[test]
+fn claude_uses_the_claude_code_settings_env() {
+    let env = Env::repo();
+    env.use_provider("claude");
+    env.write_file(
+        &env.home.join(".claude/settings.json"),
+        r#"{"env": {"ANTHROPIC_BASE_URL": "https://router.example", "ANTHROPIC_API_KEY": "settings-key"}}"#,
+    );
+    pending_change(&env, "a.txt");
+    env.respond(
+        "curl",
+        &claude_response(json!([{"type": "text", "text": output().to_string()}])),
+    );
+
+    env.run(&["commit", "-y"]).success();
+
+    let call = &env.calls("curl")[0];
+    assert_eq!(call.last().unwrap(), "https://router.example/v1/messages");
+    assert!(has_header(call, "x-api-key: settings-key"));
+    assert!(!has_header(call, "anthropic-beta: oauth-2025-04-20"));
+
+    pending_change(&env, "b.txt");
+    env.respond(
+        "curl",
+        &claude_response(json!([{"type": "text", "text": output().to_string()}])),
+    );
+    let mut command = env.command(&["commit", "-y"]);
+    command
+        .env("ANTHROPIC_BASE_URL", "https://proxy.example")
+        .env("ANTHROPIC_AUTH_TOKEN", "proxy-token");
+    env.output(command, "").success();
+
+    let call = &env.calls("curl")[1];
+    assert_eq!(call.last().unwrap(), "https://proxy.example/v1/messages");
+    assert!(has_header(call, "Authorization: Bearer proxy-token"));
 }
 
 #[test]
