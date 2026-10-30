@@ -18,11 +18,15 @@ pub fn run(provider: Option<Provider>) -> anyhow::Result<()> {
             providers.sort_by_key(|provider| Some(*provider) != current);
             let mut choices: Vec<_> = providers
                 .into_iter()
-                .map(|provider| Choice::new(provider.label(), Some(provider)))
+                .map(|provider| Choice::new(auth_config(provider), Some(provider)))
                 .collect();
             choices.push(Choice::new("Cancel", None));
 
-            let Some(provider) = tui::select("Choose an AI provider", &choices)? else {
+            let Some(provider) = tui::select(
+                "Choose which auth config on this machine ggx uses",
+                &choices,
+            )?
+            else {
                 tui::aborted();
                 return Ok(());
             };
@@ -32,7 +36,15 @@ pub fn run(provider: Option<Provider>) -> anyhow::Result<()> {
 
     ai::validate(provider)?;
     config::save(provider)?;
-    tui::success("AI provider set to", provider.label());
+    tui::success("ggx now uses your", auth_config(provider));
 
     Ok(())
+}
+
+fn auth_config(provider: Provider) -> &'static str {
+    match provider {
+        Provider::Codex => "Codex CLI auth config",
+        Provider::Claude => "Claude Code auth config",
+        Provider::Copilot => "GitHub Copilot auth config",
+    }
 }

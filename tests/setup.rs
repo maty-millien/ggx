@@ -33,7 +33,7 @@ fn saves_a_validated_provider() {
 
     let run = env.run(&["setup", "--provider", "codex"]);
 
-    assert_eq!(run.success(), "+ AI provider set to Codex\n");
+    assert_eq!(run.success(), "+ ggx now uses your Codex CLI auth config\n");
     assert_eq!(
         fs::read_to_string(env.config_path()).unwrap(),
         "{\"provider\":\"codex\"}\n"
@@ -52,7 +52,7 @@ fn saves_under_xdg_config_home() {
 
     assert_eq!(
         env.output(command, "").success(),
-        "+ AI provider set to Claude\n"
+        "+ ggx now uses your Claude Code auth config\n"
     );
     assert_eq!(
         fs::read_to_string(xdg.join("ggx/config.json")).unwrap(),
@@ -84,7 +84,10 @@ fn copilot_setup_exchanges_the_editor_login_for_a_token() {
 
     let run = env.run(&["setup", "--provider", "copilot"]);
 
-    assert_eq!(run.success(), "+ AI provider set to Copilot\n");
+    assert_eq!(
+        run.success(),
+        "+ ggx now uses your GitHub Copilot auth config\n"
+    );
     let call = &env.calls("curl")[0];
     assert!(call.contains(&"Authorization: token gho_editor".to_string()));
     assert_eq!(call.last().unwrap(), COPILOT_TOKEN_URL);
