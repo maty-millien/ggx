@@ -110,7 +110,7 @@ It uses:
 - the default inline completion engine through GitHub Copilot
 - GitHub CLI for pull requests, merges, and branch cleanup
 
-Syncing and merging require a clean worktree. Pull request creation stops if the current branch already has an open pull request. Closed and merged pull requests do not prevent creating a new one from the same branch.
+Syncing and merging require a clean worktree. If the current branch already has an open pull request, `ggx pr` regenerates its title and body against the PR's base and updates it. Closed and merged pull requests do not prevent creating a new one from the same branch.
 
 </details>
 

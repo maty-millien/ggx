@@ -213,17 +213,65 @@ fn pushes_with_the_existing_upstream() {
     );
 }
 
+const OPEN: &str =
+    r#"[{"number":3,"url":"https://github.com/owner/repo/pull/3","baseRefName":"release"}]"#;
+
+fn open_feature(env: &Env) {
+    env.git(&["branch", "release"]);
+    env.git(&["push", "origin", "release"]);
+    feature(env);
+    env.respond("gh", OPEN);
+    env.reply(generated(None, None, Some(("Add lib", BODY))));
+}
+
 #[test]
-fn refuses_when_a_pull_request_is_already_open() {
+fn updates_an_open_pull_request_against_its_base() {
+    let env = Env::repo();
+    open_feature(&env);
+    env.respond("gh", "");
+
+    let run = env.run_with_input(&["pr"], "y\n");
+
+    let stdout = run.success();
+    for expected in [
+        "● Push feature and update PR #3\n",
+        "+ Updated PR https://github.com/owner/repo/pull/3\n",
+    ] {
+        assert!(
+            stdout.contains(expected),
+            "missing {expected} in:\n{stdout}"
+        );
+    }
+    let calls = env.calls("gh");
+    assert_eq!(
+        calls[1],
+        ["pr", "edit", "3", "--title", "Add lib", "--body", BODY].map(str::to_string)
+    );
+    assert_eq!(
+        section(&env.prompts()[0], "## Pull Request Base"),
+        "release"
+    );
+}
+
+#[test]
+fn cancelling_an_update_sends_nothing() {
+    let env = Env::repo();
+    open_feature(&env);
+
+    env.run_with_input(&["pr"], "n\n").success();
+
+    assert_eq!(env.calls("gh").len(), 1);
+    assert_eq!(env.remote_branches(), "main\nrelease\n");
+}
+
+#[test]
+fn rejects_a_base_conflicting_with_the_open_pull_request() {
     let env = Env::repo();
     feature(&env);
-    env.respond(
-        "gh",
-        r#"[{"number":3,"title":"Open","url":"https://github.com/owner/repo/pull/3"}]"#,
-    );
+    env.respond("gh", OPEN);
 
-    env.run(&["pr", "-y"]).failure(
-        "A pull request is already open for this branch: https://github.com/owner/repo/pull/3",
+    env.run(&["pr", "--base", "main", "-y"]).failure(
+        "The open pull request targets 'release', not 'main': https://github.com/owner/repo/pull/3",
     );
     assert!(env.calls("curl").is_empty());
 }
@@ -235,7 +283,7 @@ fn reports_gh_failures() {
     env.respond_with("gh", "", "HTTP 401: Bad credentials\n", 1);
 
     env.run(&["pr", "-y"]).failure(
-        "gh pr list --head feature --state open --limit 1 --json url failed: HTTP 401: Bad credentials",
+        "gh pr list --head feature --state open --limit 1 --json number,url,baseRefName failed: HTTP 401: Bad credentials",
     );
 }
 

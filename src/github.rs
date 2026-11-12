@@ -44,25 +44,40 @@ pub fn pull_request() -> anyhow::Result<PullRequest> {
         "--json",
         "number,title,url,headRefName,baseRefName,mergeStateStatus,reviewDecision",
     ])?;
-    let value: Value = serde_json::from_str(&output)?;
-
-    Ok(PullRequest {
-        number: string(&value, "number"),
-        title: string(&value, "title"),
-        url: string(&value, "url"),
-        head: string(&value, "headRefName"),
-        base: string(&value, "baseRefName"),
-        merge_state: string(&value, "mergeStateStatus"),
-        review_decision: string(&value, "reviewDecision"),
-    })
+    Ok(pull_request_from(&serde_json::from_str(&output)?))
 }
 
-pub fn open_pull_request(branch: &str) -> anyhow::Result<Option<String>> {
+fn pull_request_from(value: &Value) -> PullRequest {
+    PullRequest {
+        number: string(value, "number"),
+        title: string(value, "title"),
+        url: string(value, "url"),
+        head: string(value, "headRefName"),
+        base: string(value, "baseRefName"),
+        merge_state: string(value, "mergeStateStatus"),
+        review_decision: string(value, "reviewDecision"),
+    }
+}
+
+pub fn open_pull_request(branch: &str) -> anyhow::Result<Option<PullRequest>> {
     let output = run(&[
-        "pr", "list", "--head", branch, "--state", "open", "--limit", "1", "--json", "url",
+        "pr",
+        "list",
+        "--head",
+        branch,
+        "--state",
+        "open",
+        "--limit",
+        "1",
+        "--json",
+        "number,url,baseRefName",
     ])?;
     let values: Vec<Value> = serde_json::from_str(&output)?;
-    Ok(values.first().map(|value| string(value, "url")))
+    Ok(values.first().map(pull_request_from))
+}
+
+pub fn edit_pr(number: &str, title: &str, body: &str) -> anyhow::Result<()> {
+    run(&["pr", "edit", number, "--title", title, "--body", body]).map(drop)
 }
 
 pub fn create_pr(

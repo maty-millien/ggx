@@ -28,7 +28,9 @@ pub fn run(
     let branch = git::run(&["rev-parse", "--abbrev-ref", "HEAD"])?;
     ensure!(branch != "HEAD", "Cannot create a PR from detached HEAD.");
     let default_base = git::default_base()?;
-    let base = requested_base.unwrap_or_else(|| default_base.clone());
+    let base = requested_base
+        .clone()
+        .unwrap_or_else(|| default_base.clone());
     let has_changes = git::has_changes()?;
     if branch == default_base && base != default_base {
         bail!(
@@ -40,9 +42,22 @@ pub fn run(
         !create_branch || has_changes,
         "No pending changes found on base branch '{base}'."
     );
-    if !create_branch && let Some(url) = github::open_pull_request(&branch)? {
-        bail!("A pull request is already open for this branch: {url}");
+    let existing = if create_branch {
+        None
+    } else {
+        github::open_pull_request(&branch)?
+    };
+    if let Some(existing) = &existing {
+        ensure!(
+            requested_base.is_none() || base == existing.base,
+            "The open pull request targets '{}', not '{base}': {}",
+            existing.base,
+            existing.url
+        );
     }
+    let base = existing
+        .as_ref()
+        .map_or(base, |existing| existing.base.clone());
 
     let base_ref = git::base_ref(&base)?;
     let committed = if create_branch {
@@ -110,12 +125,16 @@ pub fn run(
     tui::section("Body");
     tui::block(&pull_request.body);
 
+    let pr_action = match &existing {
+        Some(existing) => format!("update PR #{}", existing.number),
+        None => format!("create PR into {base}"),
+    };
     let action = if create_branch {
-        format!("Create {head}, commit, push, and create PR into {base}?")
+        format!("Create {head}, commit, push, and {pr_action}?")
     } else if pending.is_some() {
-        format!("Commit, push {head}, and create PR into {base}?")
+        format!("Commit, push {head}, and {pr_action}?")
     } else {
-        format!("Push {head} and create PR into {base}?")
+        format!("Push {head} and {pr_action}?")
     };
     if !tui::confirm(yes, &action)? {
         tui::aborted();
@@ -136,6 +155,13 @@ pub fn run(
     }
 
     tui::rail();
+    if let Some(existing) = existing {
+        tui::spinner("Updating pull request", || {
+            github::edit_pr(&existing.number, &pull_request.title, &pull_request.body)
+        })?;
+        tui::success("Updated PR", &existing.url);
+        return Ok(());
+    }
     let url = tui::spinner("Creating pull request", || {
         github::create_pr(&base, head, &pull_request.title, &pull_request.body, draft)
     })?;
