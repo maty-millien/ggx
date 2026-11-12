@@ -33,27 +33,40 @@ pub fn run(provider: Provider, yes: bool) -> anyhow::Result<()> {
     tui::message(&message);
 
     let upstream = git::optional_upstream();
-    let prompt = match &upstream {
-        Some(upstream) => format!("Commit and push to {upstream}?"),
-        None if git::has_origin_remote() => format!("Commit and push to origin/{branch}?"),
-        None => format!("Commit to {branch}?"),
+    let destination = match &upstream {
+        Some(upstream) => Some(upstream.clone()),
+        None if git::has_origin_remote() => Some(format!("origin/{branch}")),
+        None => None,
     };
-    if !tui::confirm(yes, &prompt)? {
+    let choice = match destination {
+        Some(destination) => tui::confirm_push(
+            yes,
+            &format!("Commit and push to {destination}"),
+            &format!("Commit to {branch} without pushing"),
+        )?,
+        None => tui::confirm(yes, &format!("Commit to {branch}?"))?.then_some(true),
+    };
+    let Some(push) = choice else {
         tui::aborted();
         return Ok(());
-    }
+    };
 
-    finish(&branch, &message, upstream)
+    finish(&branch, &message, upstream, push)
 }
 
-pub fn finish(branch: &str, message: &str, upstream: Option<String>) -> anyhow::Result<()> {
+pub fn finish(
+    branch: &str,
+    message: &str,
+    upstream: Option<String>,
+    push: bool,
+) -> anyhow::Result<()> {
     tui::spinner("Staging changes", || git::run(&["add", "--all"]))?;
     tui::spinner("Creating commit", || git::run(&["commit", "-m", message]))?;
     tui::success("Committed to", branch);
 
-    if upstream.is_some() || git::has_origin_remote() {
+    if push && (upstream.is_some() || git::has_origin_remote()) {
         tui::rail();
-        push(branch, upstream, "Pushing commit")?;
+        self::push(branch, upstream, "Pushing commit")?;
     }
 
     Ok(())

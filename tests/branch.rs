@@ -177,3 +177,35 @@ fn commits_without_pushing_when_there_is_no_origin() {
     assert_eq!(env.branch(), "feat/a");
     assert_eq!(env.last_commit(), "feat(a): add a");
 }
+
+#[test]
+fn creates_and_commits_a_branch_without_pushing_when_chosen() {
+    let env = Env::repo();
+    env.write("a.txt", "a\n");
+    env.reply(generated(Some("feat/a"), Some("feat(a): add a"), None));
+
+    let stdout = env.run_with_input(&["branch"], "2\n").success().to_string();
+
+    assert!(
+        stdout.contains("  ○ Create, checkout, and commit feat/a without pushing\n"),
+        "{stdout}"
+    );
+    assert!(stdout.ends_with("+ Committed to feat/a\n"), "{stdout}");
+    assert_eq!(env.branch(), "feat/a");
+    assert_eq!(env.last_commit(), "feat(a): add a");
+    assert_eq!(env.remote_branches(), "main\n");
+
+    env.reply(generated(Some("docs/guide"), None, None));
+    let stdout = env
+        .run_with_input(&["branch", "guide"], "2\n")
+        .success()
+        .to_string();
+
+    assert!(
+        stdout.contains("  ○ Create and checkout docs/guide without pushing\n"),
+        "{stdout}"
+    );
+    assert!(stdout.ends_with("+ Checked out docs/guide\n"), "{stdout}");
+    assert_eq!(env.branch(), "docs/guide");
+    assert_eq!(env.remote_branches(), "main\n");
+}

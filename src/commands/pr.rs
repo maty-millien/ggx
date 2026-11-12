@@ -131,7 +131,7 @@ pub fn run(
         git::optional_upstream()
     };
     match &generated.commit {
-        Some(message) => commit::finish(head, message, upstream)?,
+        Some(message) => commit::finish(head, message, upstream, true)?,
         None => commit::push(head, upstream, "Pushing branch")?,
     }
 

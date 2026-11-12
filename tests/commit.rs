@@ -127,21 +127,43 @@ fn asks_before_committing() {
     let staged = env.git(&["diff", "--staged", "--name-status"]);
     env.reply(generated(None, Some("feat(files): add files"), None));
 
-    let run = env.run_with_input(&["commit"], "2\n");
+    let run = env.run_with_input(&["commit"], "3\n");
 
     let stdout = run.success();
     assert!(
         stdout.contains(
-            "+ What would you like to do?\n  ● Commit and push to origin/feature\n  ○ Cancel\n"
+            "+ What would you like to do?\n  ● Commit and push to origin/feature\n  ○ Commit to feature without pushing\n  ○ Cancel\n"
         ),
         "{stdout}"
     );
-    assert!(stdout.contains("  ○ Commit and push to origin/feature\n  ● Cancel\n"));
+    assert!(stdout.contains("  ○ Commit to feature without pushing\n  ● Cancel\n"));
     assert!(stdout.ends_with("+ What would you like to do?\n│ Cancel\n│\n+ Aborted\n"));
     assert_eq!(env.last_commit(), "initial");
     assert_eq!(env.git(&["diff", "--staged", "--name-status"]), staged);
     let files = section(&env.prompts()[0], "## Pending Changed Files").to_string();
     assert_eq!(files, "A\tstaged.txt\nA\tunstaged.txt");
+}
+
+#[test]
+fn commits_without_pushing_when_chosen() {
+    let env = Env::repo();
+    env.write("a.txt", "a\n");
+    env.reply(generated(None, Some("feat(a): add a"), None));
+
+    let run = env.run_with_input(&["commit"], "2\n");
+
+    let stdout = run.success();
+    assert!(
+        stdout.ends_with(
+            "+ What would you like to do?\n│ Commit to main without pushing\n│\n+ Committed to main\n"
+        ),
+        "{stdout}"
+    );
+    assert_eq!(env.last_commit(), "feat(a): add a");
+    assert_eq!(
+        env.git(&["rev-parse", "origin/main^{commit}"]),
+        env.git(&["rev-parse", "HEAD~1"])
+    );
 }
 
 #[test]

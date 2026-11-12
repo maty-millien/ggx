@@ -119,6 +119,21 @@ pub fn confirm(yes: bool, prompt: &str) -> anyhow::Result<bool> {
     )
 }
 
+pub fn confirm_push(yes: bool, push: &str, local: &str) -> anyhow::Result<Option<bool>> {
+    if yes {
+        return Ok(Some(true));
+    }
+
+    select(
+        "What would you like to do?",
+        &[
+            Choice::new(push, Some(true)),
+            Choice::new(local, Some(false)),
+            Choice::new("Cancel", None),
+        ],
+    )
+}
+
 pub fn select<T: Clone>(prompt: &str, choices: &[Choice<'_, T>]) -> anyhow::Result<T> {
     let term = Term::stdout();
     flush_pending_input();

@@ -48,21 +48,39 @@ pub fn run(provider: Provider, prompt: Option<String>, yes: bool) -> anyhow::Res
         tui::message(message);
     }
 
-    let action = if generated.commit.is_some() {
-        format!("Create, checkout, commit, and push {branch}?")
+    let (action, local) = if generated.commit.is_some() {
+        (
+            "Create, checkout, commit, and push",
+            "Create, checkout, and commit",
+        )
     } else {
-        format!("Create, checkout, and push {branch}?")
+        ("Create, checkout, and push", "Create and checkout")
     };
-    if !tui::confirm(yes, &action)? {
+    let choice = if git::has_origin_remote() {
+        tui::confirm_push(
+            yes,
+            &format!("{action} {branch}"),
+            &format!("{local} {branch} without pushing"),
+        )?
+    } else {
+        tui::confirm(yes, &format!("{action} {branch}?"))?.then_some(true)
+    };
+    let Some(push) = choice else {
         tui::aborted();
         return Ok(());
-    }
+    };
 
     tui::spinner("Creating branch", || git::run(&["checkout", "-b", &branch]))?;
     tui::success("Checked out", &branch);
-    tui::rail();
     match &generated.commit {
-        Some(message) => commit::finish(&branch, message, None),
-        None => commit::push(&branch, None, "Pushing branch"),
+        Some(message) => {
+            tui::rail();
+            commit::finish(&branch, message, None, push)
+        }
+        None if push => {
+            tui::rail();
+            commit::push(&branch, None, "Pushing branch")
+        }
+        None => Ok(()),
     }
 }
