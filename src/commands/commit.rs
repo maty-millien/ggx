@@ -9,6 +9,14 @@ use std::{env, fs, process};
 pub const MAX_DIFF_CHARS: usize = 16_000;
 const MAX_README_CHARS: usize = 8_000;
 const README_NAMES: &[&str] = &["readme", "readme.md", "readme.markdown", "readme.txt"];
+pub const LOCKFILE_EXCLUDES: &[&str] = &[
+    "--",
+    ":(top,exclude,glob)**/*.lock",
+    ":(top,exclude,glob)**/*.lockb",
+    ":(top,exclude,glob)**/package-lock.json",
+    ":(top,exclude,glob)**/pnpm-lock.yaml",
+    ":(top,exclude,glob)**/go.sum",
+];
 
 pub fn run(provider: Provider, yes: bool) -> anyhow::Result<()> {
     let started = Instant::now();
@@ -143,7 +151,8 @@ impl Changes {
         }
 
         let mut notes = Vec::new();
-        let mut full_diff = diff("--unified=3")?;
+        let mut full_diff =
+            git(&[&["diff", "--staged", "--unified=3"], LOCKFILE_EXCLUDES].concat())?;
         if full_diff.chars().count() > MAX_DIFF_CHARS {
             notes.extend([
                 "Diff exceeded context budget.",

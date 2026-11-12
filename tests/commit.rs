@@ -118,6 +118,26 @@ fn notes_truncated_context() {
 }
 
 #[test]
+fn leaves_lockfile_contents_out_of_the_diff() {
+    let env = Env::repo();
+    env.write("web/package-lock.json", "lockfile contents\n");
+    env.write("Cargo.lock", "cargo lock contents\n");
+    env.write("app.rs", "fn app() {}\n");
+    env.reply(generated(None, Some("chore(repo): add files"), None));
+
+    let mut command = env.command(&["commit", "-y"]);
+    command.current_dir(env.repo.join("web"));
+    env.output(command, "").success();
+
+    let prompt = &env.prompts()[0];
+    assert!(prompt.contains("A\tCargo.lock\n"));
+    assert!(prompt.contains("A\tweb/package-lock.json\n"));
+    let diff = section(prompt, "## Pending Diff\n");
+    assert!(diff.contains("+fn app() {}"));
+    assert!(!diff.contains("contents"));
+}
+
+#[test]
 fn asks_before_committing() {
     let env = Env::repo();
     env.git(&["checkout", "-b", "feature"]);

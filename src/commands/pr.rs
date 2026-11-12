@@ -1,5 +1,5 @@
 use crate::ai::Provider;
-use crate::commands::commit::{self, Changes, MAX_DIFF_CHARS};
+use crate::commands::commit::{self, Changes, LOCKFILE_EXCLUDES, MAX_DIFF_CHARS};
 use crate::commands::generation::{self, Context};
 use crate::{git, github, tui};
 use anyhow::{bail, ensure};
@@ -156,7 +156,10 @@ fn committed_changes(base_ref: &str) -> anyhow::Result<Option<Committed>> {
     Ok(Some(Committed {
         stat: diff("--stat")?,
         numstat: diff("--numstat")?,
-        diff: diff("--unified=3")?.chars().take(MAX_DIFF_CHARS).collect(),
+        diff: git::run(&[&["diff", "--unified=3", &range], LOCKFILE_EXCLUDES].concat())?
+            .chars()
+            .take(MAX_DIFF_CHARS)
+            .collect(),
         files,
         commits,
     }))
