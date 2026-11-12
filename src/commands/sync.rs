@@ -12,7 +12,7 @@ pub fn run(yes: bool) -> anyhow::Result<()> {
     let base = git::default_base()?;
     tui::spinner("Syncing base branch", || {
         git::run(&["checkout", &base])?;
-        git::run(&["pull", "--ff-only"])
+        git::run(&["merge", "--ff-only"])
     })?;
 
     let mut candidates: Vec<String> = git::merged_branches(&base)?

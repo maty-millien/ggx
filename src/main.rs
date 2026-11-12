@@ -114,7 +114,12 @@ fn dispatch(action: Action, yes: bool) -> anyhow::Result<()> {
 }
 
 pub fn run(program: &str, args: &[&str], envs: &[(&str, &OsStr)]) -> anyhow::Result<String> {
-    let output = Command::new(program)
+    let executable = if program == "git" {
+        git::executable()
+    } else {
+        OsStr::new(program)
+    };
+    let output = Command::new(executable)
         .args(args)
         .envs(envs.iter().copied())
         .output()

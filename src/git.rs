@@ -1,4 +1,25 @@
 use anyhow::{Context, ensure};
+use std::ffi::OsStr;
+use std::path::PathBuf;
+use std::process::Command;
+use std::sync::OnceLock;
+
+pub fn executable() -> &'static OsStr {
+    static EXECUTABLE: OnceLock<PathBuf> = OnceLock::new();
+    EXECUTABLE
+        .get_or_init(|| {
+            Command::new("git")
+                .arg("--exec-path")
+                .output()
+                .ok()
+                .map(|output| {
+                    PathBuf::from(String::from_utf8_lossy(&output.stdout).trim()).join("git")
+                })
+                .filter(|path| path.is_file())
+                .unwrap_or_else(|| PathBuf::from("git"))
+        })
+        .as_os_str()
+}
 
 pub fn run(args: &[&str]) -> anyhow::Result<String> {
     crate::run("git", args, &[])
@@ -32,9 +53,19 @@ pub fn optional_upstream() -> Option<String> {
     run(&["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"]).ok()
 }
 
-pub fn branch_exists(name: &str) -> anyhow::Result<bool> {
-    Ok(!run(&["branch", "--list", name])?.is_empty()
-        || has_origin_remote() && !run(&["ls-remote", "--heads", "origin", name])?.is_empty())
+pub fn branch_names() -> anyhow::Result<Vec<String>> {
+    let mut names: Vec<String> = run(&["branch", "--format", "%(refname:short)"])?
+        .lines()
+        .map(str::to_string)
+        .collect();
+    if has_origin_remote() {
+        names.extend(
+            run(&["ls-remote", "--heads", "origin"])?
+                .lines()
+                .filter_map(|line| Some(line.split_once("\trefs/heads/")?.1.to_string())),
+        );
+    }
+    Ok(names)
 }
 
 pub fn default_base() -> anyhow::Result<String> {

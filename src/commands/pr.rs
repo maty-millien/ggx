@@ -3,6 +3,7 @@ use crate::commands::commit::{self, Changes, LOCKFILE_EXCLUDES, MAX_DIFF_CHARS};
 use crate::commands::generation::{self, Context};
 use crate::{git, github, tui};
 use anyhow::{bail, ensure};
+use std::thread;
 use std::time::Instant;
 
 const MAX_ISSUE_BODY_CHARS: usize = 8_000;
@@ -42,11 +43,19 @@ pub fn run(
         !create_branch || has_changes,
         "No pending changes found on base branch '{base}'."
     );
-    let existing = if create_branch {
-        None
-    } else {
-        github::open_pull_request(&branch)?
-    };
+    let (remote, pending) = thread::scope(|scope| {
+        let remote = scope.spawn(|| -> anyhow::Result<_> {
+            let existing = if create_branch {
+                None
+            } else {
+                github::open_pull_request(&branch)?
+            };
+            Ok((existing, issues(&closes)))
+        });
+        let pending = has_changes.then(|| Changes::collect(false)).transpose();
+        (remote.join().expect("GitHub lookup panicked"), pending)
+    });
+    let (existing, issues) = remote?;
     if let Some(existing) = &existing {
         ensure!(
             requested_base.is_none() || base == existing.base,
@@ -65,23 +74,12 @@ pub fn run(
     } else {
         committed_changes(&base_ref)?
     };
-    let pending = if has_changes {
-        Some(Changes::collect(false)?)
-    } else {
-        None
-    };
+    let pending = pending?;
     ensure!(
         committed.is_some() || pending.is_some(),
         "No changes found between {base} and {branch}."
     );
-    let issues = closes
-        .iter()
-        .map(|reference| {
-            let mut issue = github::issue(reference)?;
-            issue.body = issue.body.chars().take(MAX_ISSUE_BODY_CHARS).collect();
-            Ok(issue)
-        })
-        .collect::<anyhow::Result<Vec<_>>>()?;
+    let issues = issues?;
 
     tui::step("Analysis complete", started.elapsed());
     let mut rows = committed.as_ref().map_or_else(Vec::new, |committed| {
@@ -182,6 +180,17 @@ pub fn run(
     tui::success("Created PR", &url);
 
     Ok(())
+}
+
+fn issues(closes: &[String]) -> anyhow::Result<Vec<github::Issue>> {
+    closes
+        .iter()
+        .map(|reference| {
+            let mut issue = github::issue(reference)?;
+            issue.body = issue.body.chars().take(MAX_ISSUE_BODY_CHARS).collect();
+            Ok(issue)
+        })
+        .collect()
 }
 
 fn committed_changes(base_ref: &str) -> anyhow::Result<Option<Committed>> {

@@ -4,6 +4,7 @@ use crate::tui::{self, Review};
 use crate::{git, github};
 use anyhow::{Context as _, bail, ensure};
 use serde_json::Value;
+use std::thread;
 use std::time::Duration;
 
 const BRANCH_TYPES: &[&str] = &["feat", "fix", "refactor", "docs", "test", "chore"];
@@ -66,9 +67,20 @@ fn generate(
     rejected: Option<&str>,
 ) -> anyhow::Result<Output> {
     let attempt = |retry: Option<&str>| -> anyhow::Result<Output> {
-        let output = parse(&ai::generate(provider, &render(context, retry))?, context)?;
+        let (raw, branches) = thread::scope(|scope| {
+            let branches = scope.spawn(|| {
+                if context.new_branch {
+                    git::branch_names()
+                } else {
+                    Ok(Vec::new())
+                }
+            });
+            let raw = ai::generate(provider, &render(context, retry));
+            (raw, branches.join().expect("branch lookup panicked"))
+        });
+        let output = parse(&raw?, context)?;
         if let Some(branch) = &output.branch
-            && git::branch_exists(branch)?
+            && branches?.contains(branch)
         {
             bail!("Branch '{branch}' already exists.");
         }

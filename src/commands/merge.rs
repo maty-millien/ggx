@@ -40,8 +40,8 @@ pub fn run(squash: bool, keep_branch: bool, admin: bool, yes: bool) -> anyhow::R
     tui::rail();
     tui::spinner("Syncing base branch", || {
         git::run(&["checkout", &pull_request.base])?;
-        git::run(&["pull", "--ff-only"])?;
-        git::run(&["fetch", "--all", "--prune"])
+        git::run(&["fetch", "--all", "--prune"])?;
+        git::run(&["merge", "--ff-only"])
     })?;
     tui::success("Synced", &pull_request.base);
 
