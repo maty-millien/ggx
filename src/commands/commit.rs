@@ -27,37 +27,43 @@ pub fn run(provider: Provider, all: bool, yes: bool) -> anyhow::Result<()> {
     tui::step("Analysis complete", started.elapsed());
     tui::change_rows(&rows(&changes.files, &changes.numstat));
 
-    let (generated, elapsed) = tui::timed_spinner("Generating commit message", || {
-        let context = Context {
-            current_branch: &branch,
-            pending: Some(&changes),
-            ..Default::default()
-        };
-        generation::generate(provider, &context)
-    })?;
-    let message = generated.commit.expect("generation requires commit");
-
-    tui::step("Message generated", elapsed);
-    tui::message(&message);
-
     let upstream = git::optional_upstream();
     let destination = match &upstream {
         Some(upstream) => Some(upstream.clone()),
         None if git::has_origin_remote() => Some(format!("origin/{branch}")),
         None => None,
     };
-    let choice = match destination {
-        Some(destination) => tui::confirm_push(
-            yes,
-            &format!("Commit and push to {destination}"),
-            &format!("Commit to {branch} without pushing"),
-        )?,
-        None => tui::confirm(yes, &format!("Commit to {branch}?"))?.then_some(true),
+    let (action, local) = match destination {
+        Some(destination) => (
+            format!("Commit and push to {destination}"),
+            Some(format!("Commit to {branch} without pushing")),
+        ),
+        None => (format!("Commit to {branch}"), None),
     };
-    let Some(push) = choice else {
-        tui::aborted();
+    let context = Context {
+        current_branch: &branch,
+        pending: Some(&changes),
+        ..Default::default()
+    };
+    let Some((generated, push)) = generation::review(
+        provider,
+        &context,
+        "Generating commit message",
+        |generated, elapsed| {
+            tui::step("Message generated", elapsed);
+            tui::message(
+                generated
+                    .commit
+                    .as_deref()
+                    .expect("generation requires commit"),
+            );
+            tui::review(yes, &action, local.as_deref())
+        },
+    )?
+    else {
         return Ok(());
     };
+    let message = generated.commit.expect("generation requires commit");
 
     finish(&branch, &message, upstream, push, changes.all)
 }

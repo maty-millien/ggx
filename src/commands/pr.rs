@@ -94,52 +94,60 @@ pub fn run(
     );
     tui::change_rows(&rows);
 
-    let (generated, elapsed) = tui::timed_spinner("Generating pull request workflow", || {
-        let context = Context {
-            current_branch: &branch,
-            new_branch: create_branch,
-            base: Some(&base),
-            user_prompt: None,
-            committed: committed.as_ref(),
-            pending: pending.as_ref(),
-            issues: &issues,
-        };
-        generation::generate(provider, &context)
-    })?;
-    let pull_request = generated
-        .pull_request
-        .expect("generation requires pull request");
-    let head = generated.branch.as_deref().unwrap_or(&branch);
-
-    tui::step("Workflow generated", elapsed);
-    if let Some(generated_branch) = &generated.branch {
-        tui::section("Branch");
-        tui::message(generated_branch);
-    }
-    if let Some(message) = &generated.commit {
-        tui::section("Commit");
-        tui::message(message);
-    }
-    tui::section("Title");
-    tui::message(&pull_request.title);
-    tui::section("Body");
-    tui::block(&pull_request.body);
-
     let pr_action = match &existing {
         Some(existing) => format!("update PR #{}", existing.number),
         None => format!("create PR into {base}"),
     };
-    let action = if create_branch {
-        format!("Create {head}, commit, push, and {pr_action}?")
-    } else if pending.is_some() {
-        format!("Commit, push {head}, and {pr_action}?")
-    } else {
-        format!("Push {head} and {pr_action}?")
+    let context = Context {
+        current_branch: &branch,
+        new_branch: create_branch,
+        base: Some(&base),
+        user_prompt: None,
+        committed: committed.as_ref(),
+        pending: pending.as_ref(),
+        issues: &issues,
     };
-    if !tui::confirm(yes, &action)? {
-        tui::aborted();
+    let Some((generated, _)) = generation::review(
+        provider,
+        &context,
+        "Generating pull request workflow",
+        |generated, elapsed| {
+            let pull_request = generated
+                .pull_request
+                .as_ref()
+                .expect("generation requires pull request");
+            let head = generated.branch.as_deref().unwrap_or(&branch);
+            tui::step("Workflow generated", elapsed);
+            if let Some(generated_branch) = &generated.branch {
+                tui::section("Branch");
+                tui::message(generated_branch);
+            }
+            if let Some(message) = &generated.commit {
+                tui::section("Commit");
+                tui::message(message);
+            }
+            tui::section("Title");
+            tui::message(&pull_request.title);
+            tui::section("Body");
+            tui::block(&pull_request.body);
+
+            let action = if create_branch {
+                format!("Create {head}, commit, push, and {pr_action}")
+            } else if pending.is_some() {
+                format!("Commit, push {head}, and {pr_action}")
+            } else {
+                format!("Push {head} and {pr_action}")
+            };
+            tui::review(yes, &action, None)
+        },
+    )?
+    else {
         return Ok(());
-    }
+    };
+    let pull_request = generated
+        .pull_request
+        .expect("generation requires pull request");
+    let head = generated.branch.as_deref().unwrap_or(&branch);
 
     let upstream = if create_branch {
         tui::spinner("Creating branch", || git::run(&["checkout", "-b", head]))?;

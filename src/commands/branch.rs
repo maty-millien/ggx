@@ -28,27 +28,7 @@ pub fn run(provider: Provider, prompt: Option<String>, all: bool, yes: bool) -> 
         tui::change_rows(&commit::rows(&changes.files, &changes.numstat));
     }
 
-    let (generated, elapsed) = tui::timed_spinner("Generating branch workflow", || {
-        let context = Context {
-            current_branch: &current_branch,
-            new_branch: true,
-            user_prompt: prompt,
-            pending: changes.as_ref(),
-            ..Default::default()
-        };
-        generation::generate(provider, &context)
-    })?;
-    let branch = generated.branch.expect("generation requires branch");
-
-    tui::step("Workflow generated", elapsed);
-    tui::section("Branch");
-    tui::message(&branch);
-    if let Some(message) = &generated.commit {
-        tui::section("Commit");
-        tui::message(message);
-    }
-
-    let (action, local) = if generated.commit.is_some() {
+    let (action, local) = if changes.is_some() {
         (
             "Create, checkout, commit, and push",
             "Create, checkout, and commit",
@@ -56,19 +36,42 @@ pub fn run(provider: Provider, prompt: Option<String>, all: bool, yes: bool) -> 
     } else {
         ("Create, checkout, and push", "Create and checkout")
     };
-    let choice = if git::has_origin_remote() {
-        tui::confirm_push(
-            yes,
-            &format!("{action} {branch}"),
-            &format!("{local} {branch} without pushing"),
-        )?
-    } else {
-        tui::confirm(yes, &format!("{action} {branch}?"))?.then_some(true)
+    let origin = git::has_origin_remote();
+    let context = Context {
+        current_branch: &current_branch,
+        new_branch: true,
+        user_prompt: prompt,
+        pending: changes.as_ref(),
+        ..Default::default()
     };
-    let Some(push) = choice else {
-        tui::aborted();
+    let Some((generated, push)) = generation::review(
+        provider,
+        &context,
+        "Generating branch workflow",
+        |generated, elapsed| {
+            let branch = generated
+                .branch
+                .as_deref()
+                .expect("generation requires branch");
+            tui::step("Workflow generated", elapsed);
+            tui::section("Branch");
+            tui::message(branch);
+            if let Some(message) = &generated.commit {
+                tui::section("Commit");
+                tui::message(message);
+            }
+            let local = format!("{local} {branch} without pushing");
+            tui::review(
+                yes,
+                &format!("{action} {branch}"),
+                origin.then_some(local.as_str()),
+            )
+        },
+    )?
+    else {
         return Ok(());
     };
+    let branch = generated.branch.expect("generation requires branch");
 
     tui::spinner("Creating branch", || git::run(&["checkout", "-b", &branch]))?;
     tui::success("Checked out", &branch);

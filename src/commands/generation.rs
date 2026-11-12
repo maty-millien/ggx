@@ -1,8 +1,10 @@
 use crate::ai::{self, Provider};
 use crate::commands::{commit::Changes, pr::Committed};
+use crate::tui::{self, Review};
 use crate::{git, github};
 use anyhow::{Context as _, bail, ensure};
 use serde_json::Value;
+use std::time::Duration;
 
 const BRANCH_TYPES: &[&str] = &["feat", "fix", "refactor", "docs", "test", "chore"];
 const COMMIT_TYPES: &[&str] = &[
@@ -24,6 +26,7 @@ pub struct Output {
     pub branch: Option<String>,
     pub commit: Option<String>,
     pub pull_request: Option<PullRequest>,
+    raw: String,
 }
 
 pub struct PullRequest {
@@ -31,7 +34,37 @@ pub struct PullRequest {
     pub body: String,
 }
 
-pub fn generate(provider: Provider, context: &Context) -> anyhow::Result<Output> {
+pub fn review(
+    provider: Provider,
+    context: &Context,
+    label: &'static str,
+    mut show: impl FnMut(&Output, Duration) -> anyhow::Result<Review>,
+) -> anyhow::Result<Option<(Output, bool)>> {
+    let mut rejected = None;
+    loop {
+        let (output, elapsed) =
+            tui::timed_spinner(label, || generate(provider, context, rejected.as_deref()))?;
+        match show(&output, elapsed)? {
+            Review::Accept(push) => return Ok(Some((output, push))),
+            Review::Regenerate => {
+                rejected = Some(format!(
+                    "the user asked for a different result than {}",
+                    output.raw
+                ))
+            }
+            Review::Cancel => {
+                tui::aborted();
+                return Ok(None);
+            }
+        }
+    }
+}
+
+fn generate(
+    provider: Provider,
+    context: &Context,
+    rejected: Option<&str>,
+) -> anyhow::Result<Output> {
     let attempt = |retry: Option<&str>| -> anyhow::Result<Output> {
         let output = parse(&ai::generate(provider, &render(context, retry))?, context)?;
         if let Some(branch) = &output.branch
@@ -42,7 +75,7 @@ pub fn generate(provider: Provider, context: &Context) -> anyhow::Result<Output>
         Ok(output)
     };
 
-    attempt(None).or_else(|error| attempt(Some(&error.to_string())))
+    attempt(rejected).or_else(|error| attempt(Some(&error.to_string())))
 }
 
 fn parse(raw: &str, context: &Context) -> anyhow::Result<Output> {
@@ -97,6 +130,7 @@ fn parse(raw: &str, context: &Context) -> anyhow::Result<Output> {
         branch,
         commit,
         pull_request,
+        raw: raw.to_string(),
     })
 }
 

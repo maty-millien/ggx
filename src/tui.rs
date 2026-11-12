@@ -119,19 +119,23 @@ pub fn confirm(yes: bool, prompt: &str) -> anyhow::Result<bool> {
     )
 }
 
-pub fn confirm_push(yes: bool, push: &str, local: &str) -> anyhow::Result<Option<bool>> {
+#[derive(Clone)]
+pub enum Review {
+    Accept(bool),
+    Regenerate,
+    Cancel,
+}
+
+pub fn review(yes: bool, push: &str, local: Option<&str>) -> anyhow::Result<Review> {
     if yes {
-        return Ok(Some(true));
+        return Ok(Review::Accept(true));
     }
 
-    select(
-        "What would you like to do?",
-        &[
-            Choice::new(push, Some(true)),
-            Choice::new(local, Some(false)),
-            Choice::new("Cancel", None),
-        ],
-    )
+    let mut choices = vec![Choice::new(push, Review::Accept(true))];
+    choices.extend(local.map(|local| Choice::new(local, Review::Accept(false))));
+    choices.push(Choice::new("Regenerate", Review::Regenerate));
+    choices.push(Choice::new("Cancel", Review::Cancel));
+    select("What would you like to do?", &choices)
 }
 
 pub fn select<T: Clone>(prompt: &str, choices: &[Choice<'_, T>]) -> anyhow::Result<T> {

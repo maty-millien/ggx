@@ -147,16 +147,16 @@ fn asks_before_committing() {
     let staged = env.git(&["diff", "--staged", "--name-status"]);
     env.reply(generated(None, Some("feat(files): add files"), None));
 
-    let run = env.run_with_input(&["commit"], "3\n");
+    let run = env.run_with_input(&["commit"], "4\n");
 
     let stdout = run.success();
     assert!(
         stdout.contains(
-            "+ What would you like to do?\n  ● Commit and push to origin/feature\n  ○ Commit to feature without pushing\n  ○ Cancel\n"
+            "+ What would you like to do?\n  ● Commit and push to origin/feature\n  ○ Commit to feature without pushing\n  ○ Regenerate\n  ○ Cancel\n"
         ),
         "{stdout}"
     );
-    assert!(stdout.contains("  ○ Commit to feature without pushing\n  ● Cancel\n"));
+    assert!(stdout.contains("  ○ Regenerate\n  ● Cancel\n"));
     assert!(stdout.ends_with("+ What would you like to do?\n│ Cancel\n│\n+ Aborted\n"));
     assert_eq!(env.last_commit(), "initial");
     assert_eq!(env.git(&["diff", "--staged", "--name-status"]), staged);
@@ -184,6 +184,33 @@ fn commits_without_pushing_when_chosen() {
         env.git(&["rev-parse", "origin/main^{commit}"]),
         env.git(&["rev-parse", "HEAD~1"])
     );
+}
+
+#[test]
+fn regenerates_with_the_rejected_output() {
+    let env = Env::repo();
+    env.write("a.txt", "a\n");
+    let first = generated(None, Some("feat(a): add a"), None);
+    env.reply(first.clone());
+    env.reply(generated(None, Some("feat(a): create a"), None));
+
+    let stdout = env
+        .run_with_input(&["commit"], "3\n2\n")
+        .success()
+        .to_string();
+
+    assert!(
+        stdout.contains("+ What would you like to do?\n│ Regenerate\n│\n+ Message generated"),
+        "{stdout}"
+    );
+    assert!(stdout.ends_with("│ Commit to main without pushing\n│\n+ Committed to main\n"));
+    let prompts = env.prompts();
+    assert_eq!(prompts.len(), 2);
+    assert!(!prompts[0].contains("## Previous Attempt"));
+    assert!(prompts[1].contains(&format!(
+        "The previous response was rejected: the user asked for a different result than {first}\n"
+    )));
+    assert_eq!(env.last_commit(), "feat(a): create a");
 }
 
 #[test]
