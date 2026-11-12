@@ -66,7 +66,7 @@ pub fn run(
         committed_changes(&base_ref)?
     };
     let pending = if has_changes {
-        Some(Changes::collect()?)
+        Some(Changes::collect(false)?)
     } else {
         None
     };
@@ -150,7 +150,13 @@ pub fn run(
         git::optional_upstream()
     };
     match &generated.commit {
-        Some(message) => commit::finish(head, message, upstream, true)?,
+        Some(message) => commit::finish(
+            head,
+            message,
+            upstream,
+            true,
+            pending.as_ref().is_none_or(|pending| pending.all),
+        )?,
         None => commit::push(head, upstream, "Pushing branch")?,
     }
 

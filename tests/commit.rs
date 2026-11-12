@@ -161,7 +161,7 @@ fn asks_before_committing() {
     assert_eq!(env.last_commit(), "initial");
     assert_eq!(env.git(&["diff", "--staged", "--name-status"]), staged);
     let files = section(&env.prompts()[0], "## Pending Changed Files").to_string();
-    assert_eq!(files, "A\tstaged.txt\nA\tunstaged.txt");
+    assert_eq!(files, "A\tstaged.txt");
 }
 
 #[test]
@@ -339,7 +339,7 @@ fn shows_deleted_renamed_and_retyped_files() {
     std::os::unix::fs::symlink("README.md", env.repo.join("retyped.txt")).unwrap();
     env.reply(generated(None, Some("chore(files): reshuffle"), None));
 
-    let stdout = env.run(&["commit", "-y"]).success().to_string();
+    let stdout = env.run(&["commit", "--all", "-y"]).success().to_string();
 
     for expected in [
         "│   D  deleted.txt -1\n",
@@ -351,4 +351,49 @@ fn shows_deleted_renamed_and_retyped_files() {
             "missing {expected} in:\n{stdout}"
         );
     }
+}
+
+#[test]
+fn commits_only_staged_changes() {
+    let env = Env::repo();
+    env.write("staged.txt", "staged\n");
+    env.git(&["add", "staged.txt"]);
+    env.write("README.md", "# Demo\nMore\n");
+    env.write("untracked.txt", "untracked\n");
+    env.reply(generated(None, Some("feat(files): add staged"), None));
+
+    let stdout = env.run(&["commit", "-y"]).success().to_string();
+
+    assert!(
+        stdout.contains("│ Changes\n│   A  staged.txt +1\n│\n"),
+        "{stdout}"
+    );
+    let prompt = &env.prompts()[0];
+    assert_eq!(section(prompt, "## Pending Changed Files"), "A\tstaged.txt");
+    assert!(!prompt.contains("untracked"), "{prompt}");
+    assert_eq!(
+        env.git(&["show", "--name-only", "--format="]),
+        "staged.txt\n"
+    );
+    assert_eq!(
+        env.git(&["status", "--porcelain"]),
+        " M README.md\n?? untracked.txt\n"
+    );
+}
+
+#[test]
+fn commits_everything_with_all() {
+    let env = Env::repo();
+    env.write("staged.txt", "staged\n");
+    env.git(&["add", "staged.txt"]);
+    env.write("untracked.txt", "untracked\n");
+    env.reply(generated(None, Some("feat(files): add files"), None));
+
+    env.run(&["commit", "--all", "-y"]).success();
+
+    assert_eq!(
+        section(&env.prompts()[0], "## Pending Changed Files"),
+        "A\tstaged.txt\nA\tuntracked.txt"
+    );
+    assert_eq!(env.git(&["status", "--porcelain"]), "");
 }

@@ -103,6 +103,8 @@ Add `--admin` to `merge` or `squash` when GitHub requires elevated permissions.
 
 `ggx` reads the current git state and diff, then asks your chosen AI provider, using the login of its CLI, to generate the relevant branch name, commit message, or pull request copy. By default, you review and confirm the result before it stages, commits, or pushes anything. With `-y`/`--yes`, ggx displays the result and proceeds automatically.
 
+If you have staged changes, `ggx` only uses and commits those, leaving the rest untouched. Otherwise, it stages everything. Pass `--all` to `ggx commit` or `ggx branch` to stage everything anyway.
+
 It uses:
 
 - `gpt-6-luna` with no reasoning effort through Codex, calling its backend directly with your Codex login and needing `curl`

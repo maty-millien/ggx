@@ -40,8 +40,13 @@ enum Action {
     },
     Branch {
         prompt: Option<String>,
+        #[arg(long)]
+        all: bool,
     },
-    Commit,
+    Commit {
+        #[arg(long)]
+        all: bool,
+    },
     Pr {
         #[arg(long)]
         draft: bool,
@@ -91,8 +96,8 @@ fn dispatch(action: Action, yes: bool) -> anyhow::Result<()> {
     match action {
         Action::Setup { provider } => setup::run(provider),
         Action::Update => config::load().and_then(|_| update::run()),
-        Action::Branch { prompt } => branch::run(configured()?, prompt, yes),
-        Action::Commit => commit::run(configured()?, yes),
+        Action::Branch { prompt, all } => branch::run(configured()?, prompt, all, yes),
+        Action::Commit { all } => commit::run(configured()?, all, yes),
         Action::Pr {
             draft,
             closes,

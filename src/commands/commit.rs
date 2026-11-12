@@ -18,11 +18,11 @@ pub const LOCKFILE_EXCLUDES: &[&str] = &[
     ":(top,exclude,glob)**/go.sum",
 ];
 
-pub fn run(provider: Provider, yes: bool) -> anyhow::Result<()> {
+pub fn run(provider: Provider, all: bool, yes: bool) -> anyhow::Result<()> {
     let started = Instant::now();
     git::ensure_no_conflicts()?;
     let branch = git::run(&["symbolic-ref", "--short", "HEAD"])?;
-    let changes = Changes::collect()?;
+    let changes = Changes::collect(all)?;
 
     tui::step("Analysis complete", started.elapsed());
     tui::change_rows(&rows(&changes.files, &changes.numstat));
@@ -59,7 +59,7 @@ pub fn run(provider: Provider, yes: bool) -> anyhow::Result<()> {
         return Ok(());
     };
 
-    finish(&branch, &message, upstream, push)
+    finish(&branch, &message, upstream, push, changes.all)
 }
 
 pub fn finish(
@@ -67,8 +67,11 @@ pub fn finish(
     message: &str,
     upstream: Option<String>,
     push: bool,
+    all: bool,
 ) -> anyhow::Result<()> {
-    tui::spinner("Staging changes", || git::run(&["add", "--all"]))?;
+    if all {
+        tui::spinner("Staging changes", || git::run(&["add", "--all"]))?;
+    }
     tui::spinner("Creating commit", || git::run(&["commit", "-m", message]))?;
     tui::success("Committed to", branch);
 
@@ -129,10 +132,12 @@ pub struct Changes {
     pub readme: Option<String>,
     pub diff: String,
     pub notes: Vec<&'static str>,
+    pub all: bool,
 }
 
 impl Changes {
-    pub fn collect() -> anyhow::Result<Self> {
+    pub fn collect(all: bool) -> anyhow::Result<Self> {
+        let all = all || git::run(&["diff", "--cached", "--quiet"]).is_ok();
         let index = TemporaryFile(env::temp_dir().join(format!("ggx-index-{}", process::id())));
         let git =
             |args: &[&str]| crate::run("git", args, &[("GIT_INDEX_FILE", index.0.as_os_str())]);
@@ -142,7 +147,9 @@ impl Changes {
         } else {
             let _ = git(&["read-tree", "HEAD"]);
         }
-        git(&["add", "--all"])?;
+        if all {
+            git(&["add", "--all"])?;
+        }
 
         let diff = |flag: &str| git(&["diff", "--staged", flag]);
         let files = diff("--name-status")?;
@@ -177,6 +184,7 @@ impl Changes {
             readme,
             diff: full_diff,
             notes,
+            all,
         })
     }
 }

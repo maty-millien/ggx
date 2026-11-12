@@ -5,7 +5,7 @@ use crate::{git, tui};
 use anyhow::bail;
 use std::time::Instant;
 
-pub fn run(provider: Provider, prompt: Option<String>, yes: bool) -> anyhow::Result<()> {
+pub fn run(provider: Provider, prompt: Option<String>, all: bool, yes: bool) -> anyhow::Result<()> {
     let started = Instant::now();
     let prompt = prompt
         .as_deref()
@@ -18,7 +18,7 @@ pub fn run(provider: Provider, prompt: Option<String>, yes: bool) -> anyhow::Res
     let current_branch = git::run(&["rev-parse", "--abbrev-ref", "HEAD"])?;
     git::ensure_no_conflicts()?;
     let changes = if has_changes {
-        Some(Changes::collect()?)
+        Some(Changes::collect(all)?)
     } else {
         None
     };
@@ -75,7 +75,13 @@ pub fn run(provider: Provider, prompt: Option<String>, yes: bool) -> anyhow::Res
     match &generated.commit {
         Some(message) => {
             tui::rail();
-            commit::finish(&branch, message, None, push)
+            commit::finish(
+                &branch,
+                message,
+                None,
+                push,
+                changes.is_none_or(|changes| changes.all),
+            )
         }
         None if push => {
             tui::rail();
